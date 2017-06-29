@@ -1,17 +1,16 @@
 require 'test_helper'
 
-class FedExTest < MiniTest::Unit::TestCase
+class FedExTest < Minitest::Test
+  include ActiveShipping::Test::Fixtures
+
   def setup
-    @packages               = TestFixtures.packages
-    @locations              = TestFixtures.locations
-    @carrier                = FedEx.new(:key => '1111', :password => '2222', :account => '3333', :login => '4444')
-    @tracking_response      = xml_fixture('fedex/tracking_response')
+    @carrier = FedEx.new(:key => '1111', :password => '2222', :account => '3333', :login => '4444')
   end
 
   def test_initialize_options_requirements
-    assert_raises ArgumentError do FedEx.new end
-    assert_raises ArgumentError do FedEx.new(:login => '999999999') end
-    assert_raises ArgumentError do FedEx.new(:password => '7777777') end
+    assert_raises(ArgumentError) { FedEx.new }
+    assert_raises(ArgumentError) { FedEx.new(:login => '999999999') }
+    assert_raises(ArgumentError) { FedEx.new(:password => '7777777') }
     FedEx.new(:key => '999999999', :password => '7777777', :account => '123', :login => '123')
   end
 
@@ -38,8 +37,8 @@ class FedExTest < MiniTest::Unit::TestCase
         parsed_response['RateRequest']['RequestedShipment']['ShipTimestamp'] == timestamp
       end.returns(mock_response)
 
-      destination = ActiveMerchant::Shipping::Location.from(@locations[:beverly_hills].to_hash, :address_type => :commercial)
-      response = @carrier.find_rates @locations[:ottawa], destination, @packages[:book], :test => true
+      destination = ActiveShipping::Location.from(location_fixtures[:beverly_hills].to_hash, :address_type => :commercial)
+      response = @carrier.find_rates location_fixtures[:ottawa], destination, package_fixtures[:book], :test => true
       assert_equal [delivery_date, delivery_date], response.rates.first.delivery_range
     end
   end
@@ -54,8 +53,8 @@ class FedExTest < MiniTest::Unit::TestCase
         parsed_response['RateRequest']['RequestedShipment']['ShipTimestamp'] == timestamp
       end.returns(mock_response)
 
-      destination = ActiveMerchant::Shipping::Location.from(@locations[:beverly_hills].to_hash, :address_type => :commercial)
-      response = @carrier.find_rates @locations[:ottawa], destination, @packages[:book], :turn_around_time => 24, :test => true
+      destination = ActiveShipping::Location.from(location_fixtures[:beverly_hills].to_hash, :address_type => :commercial)
+      response = @carrier.find_rates location_fixtures[:ottawa], destination, package_fixtures[:book], :turn_around_time => 24, :test => true
 
       assert_equal [delivery_date, delivery_date], response.rates.first.delivery_range
     end
@@ -69,166 +68,27 @@ class FedExTest < MiniTest::Unit::TestCase
       parsed_request['RateRequest']['TransactionDetail']['CustomerTransactionId'] == transaction_id
     end.returns(xml_fixture('fedex/ottawa_to_beverly_hills_rate_response'))
 
-    destination = ActiveMerchant::Shipping::Location.from(@locations[:beverly_hills].to_hash, :address_type => :commercial)
-    @carrier.find_rates @locations[:ottawa], destination, @packages[:book], :test => true
-  end
-
-  def test_find_tracking_info_should_return_a_tracking_response
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_instance_of ActiveMerchant::Shipping::TrackingResponse, @carrier.find_tracking_info('077973360403984', :test => true)
-  end
-
-  def test_find_tracking_info_should_mark_shipment_as_delivered
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal true, @carrier.find_tracking_info('077973360403984').delivered?
-  end
-
-  def test_find_tracking_info_should_return_correct_carrier
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal :fedex, @carrier.find_tracking_info('077973360403984').carrier
-  end
-
-  def test_find_tracking_info_should_return_correct_carrier_name
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal 'FedEx', @carrier.find_tracking_info('077973360403984').carrier_name
-  end
-
-  def test_find_tracking_info_should_return_correct_status
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal :delivered, @carrier.find_tracking_info('077973360403984').status
-  end
-
-  def test_find_tracking_info_should_return_correct_status_code
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal 'dl', @carrier.find_tracking_info('077973360403984').status_code.downcase
-  end
-
-  def test_find_tracking_info_should_return_correct_status_description
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal 'delivered', @carrier.find_tracking_info('1Z5FX0076803466397').status_description.downcase
-  end
-
-  def test_find_tracking_info_should_return_delivery_signature
-    @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal 'KKING', @carrier.find_tracking_info('077973360403984').delivery_signature
-  end
-
-  def test_find_tracking_info_should_return_destination_address
-    @carrier.expects(:commit).returns(@tracking_response)
-    result = @carrier.find_tracking_info('077973360403984')
-    assert_equal 'sacramento', result.destination.city.downcase
-    assert_equal 'CA', result.destination.state
-  end
-
-  def test_find_tracking_info_should_gracefully_handle_missing_destination_information
-    @carrier.expects(:commit).returns(xml_fixture('fedex/tracking_response_no_destination'))
-    result = @carrier.find_tracking_info('077973360403984')
-    assert_equal 'unknown', result.destination.city.downcase
-    assert_equal 'unknown', result.destination.state
-    assert_equal 'ZZ', result.destination.country.code(:alpha2).to_s
-  end
-
-  def test_find_tracking_info_should_gracefully_handle_empty_destination_information
-    @carrier.expects(:commit).returns(xml_fixture('fedex/tracking_response_empty_destination'))
-    result = @carrier.find_tracking_info('077973360403984')
-    assert_equal 'unknown', result.destination.city.downcase
-    assert_equal 'unknown', result.destination.state
-    assert_equal 'ZZ', result.destination.country.code(:alpha2).to_s
-  end
-
-  def test_find_tracking_info_should_return_correct_shipper_address
-    @carrier.expects(:commit).returns(xml_fixture('fedex/tracking_response_with_shipper_address'))
-    response = @carrier.find_tracking_info('927489999894450502838')
-    assert_equal 'wallingford', response.shipper_address.city.downcase
-    assert_equal 'CT', response.shipper_address.state
-  end
-
-  def test_find_tracking_info_should_gracefully_handle_missing_shipper_address
-    @carrier.expects(:commit).returns(@tracking_response)
-    response = @carrier.find_tracking_info('077973360403984')
-    assert_equal nil, response.shipper_address
-  end
-
-  def test_find_tracking_info_should_return_correct_ship_time
-    @carrier.expects(:commit).returns(@tracking_response)
-    response = @carrier.find_tracking_info('927489999894450502838')
-    assert_equal Time.parse("2008-12-03T00:00:00").utc, response.ship_time
-  end
-
-  def test_find_tracking_info_should_gracefully_handle_missing_ship_time
-    @carrier.expects(:commit).returns(xml_fixture('fedex/tracking_response_no_ship_time'))
-    response = @carrier.find_tracking_info('927489999894450502838')
-    assert_equal nil, response.ship_time
-  end
-
-  def test_find_tracking_info_should_return_correct_actual_delivery_date
-    @carrier.expects(:commit).returns(@tracking_response)
-    response = @carrier.find_tracking_info('077973360403984')
-    assert_equal Time.parse('2008-12-08T07:43:37-08:00').utc, response.actual_delivery_date
-  end
-
-  def test_find_tracking_info_should_gracefully_handle_missing_actual_delivery_date
-    # This particular fixture doesn't contain an actual delivery date
-    # (in addition to having a shipper address)
-    @carrier.expects(:commit).returns(xml_fixture('fedex/tracking_response_with_shipper_address'))
-    response = @carrier.find_tracking_info('9274899998944505028386')
-    assert_equal nil, response.actual_delivery_date
-  end
-
-  def test_find_tracking_info_should_return_correct_scheduled_delivery_date
-    @carrier.expects(:commit).returns(xml_fixture('fedex/tracking_response_with_estimated_delivery_date'))
-    response = @carrier.find_tracking_info('1234567890111')
-    assert_equal Time.parse('2013-10-15T00:00:00').utc, response.scheduled_delivery_date
-  end
-
-  def test_find_tracking_info_should_gracefully_handle_missing_scheduled_delivery_date
-    @carrier.expects(:commit).returns(@tracking_response)
-    response = @carrier.find_tracking_info('077973360403984')
-    assert_equal nil, response.scheduled_delivery_date
-  end
-
-  def test_find_tracking_info_should_return_origin_address
-    @carrier.expects(:commit).returns(@tracking_response)
-    result = @carrier.find_tracking_info('077973360403984')
-    assert_equal 'nashville', result.origin.city.downcase
-    assert_equal 'TN', result.origin.state
-  end
-
-  def test_find_tracking_info_should_parse_response_into_correct_number_of_shipment_events
-    @carrier.expects(:commit).returns(@tracking_response)
-    response = @carrier.find_tracking_info('077973360403984', :test => true)
-    assert_equal 6, response.shipment_events.size
-  end
-
-  def test_find_tracking_info_should_return_shipment_events_in_ascending_chronological_order
-    @carrier.expects(:commit).returns(@tracking_response)
-    response = @carrier.find_tracking_info('077973360403984', :test => true)
-    assert_equal response.shipment_events.map(&:time).sort, response.shipment_events.map(&:time)
-  end
-
-  def test_find_tracking_info_should_not_include_events_without_an_address
-    @carrier.expects(:commit).returns(@tracking_response)
-    response = @carrier.find_tracking_info('077973360403984', :test => true)
-    assert_nil response.shipment_events.find { |event| event.name == 'Shipment information sent to FedEx' }
+    destination = ActiveShipping::Location.from(location_fixtures[:beverly_hills].to_hash, :address_type => :commercial)
+    @carrier.find_rates location_fixtures[:ottawa], destination, package_fixtures[:book], :test => true
   end
 
   def test_building_request_with_address_type_commercial_should_not_include_residential
     mock_response = xml_fixture('fedex/ottawa_to_beverly_hills_rate_response')
     expected_request = xml_fixture('fedex/ottawa_to_beverly_hills_commercial_rate_request')
-    Time.any_instance.expects(:to_xml_value).returns("2009-07-20T12:01:55-04:00")
 
+    @carrier.expects(:ship_timestamp).returns(Time.parse("2009-07-20T12:01:55-04:00").in_time_zone('US/Eastern'))
     @carrier.expects(:commit).with { |request, test_mode| Hash.from_xml(request) == Hash.from_xml(expected_request) && test_mode }.returns(mock_response)
-    destination = ActiveMerchant::Shipping::Location.from(@locations[:beverly_hills].to_hash, :address_type => :commercial)
-    @carrier.find_rates( @locations[:ottawa],
+    destination = ActiveShipping::Location.from(location_fixtures[:beverly_hills].to_hash, :address_type => :commercial)
+    @carrier.find_rates( location_fixtures[:ottawa],
                          destination,
-                         @packages.values_at(:book, :wii), :test => true)
+                         package_fixtures.values_at(:book, :wii), :test => true)
   end
 
   def test_building_freight_request_and_parsing_response
     expected_request = xml_fixture('fedex/freight_rate_request')
     mock_response = xml_fixture('fedex/freight_rate_response')
-    Time.any_instance.expects(:to_xml_value).returns("2013-11-01T14:04:01-07:00")
 
+    @carrier.expects(:ship_timestamp).returns(Time.parse("2013-11-01T14:04:01-07:00").in_time_zone('US/Pacific'))
     @carrier.expects(:commit).with { |request, test_mode| Hash.from_xml(request) == Hash.from_xml(expected_request) && test_mode }.returns(mock_response)
 
     # shipping and billing addresses below are provided by fedex test credentials
@@ -257,8 +117,8 @@ class FedExTest < MiniTest::Unit::TestCase
     }
 
     response = @carrier.find_rates( shipping_location,
-                                    @locations[:ottawa],
-                                    @packages.values_at(:wii),  :freight => freight_options, :test => true )
+                                    location_fixtures[:ottawa],
+                                    [package_fixtures[:wii]],  :freight => freight_options, :test => true )
 
     assert_equal ["FedEx Freight Economy", "FedEx Freight Priority"], response.rates.map(&:service_name)
     assert_equal [66263, 68513], response.rates.map(&:price)
@@ -277,7 +137,7 @@ class FedExTest < MiniTest::Unit::TestCase
     assert_instance_of String, rate.service_name
     assert_instance_of String, rate.service_code
     assert_instance_of Array, rate.package_rates
-    assert_equal @packages.values_at(:wii), rate.packages
+    assert_equal [package_fixtures[:wii]], rate.packages
 
     package_rate = rate.package_rates.first
     assert_instance_of Hash, package_rate
@@ -288,12 +148,11 @@ class FedExTest < MiniTest::Unit::TestCase
   def test_building_request_and_parsing_response
     expected_request = xml_fixture('fedex/ottawa_to_beverly_hills_rate_request')
     mock_response = xml_fixture('fedex/ottawa_to_beverly_hills_rate_response')
-    Time.any_instance.expects(:to_xml_value).returns("2009-07-20T12:01:55-04:00")
-
+    @carrier.expects(:ship_timestamp).returns(Time.parse("2009-07-20T12:01:55-04:00").in_time_zone('US/Eastern'))
     @carrier.expects(:commit).with { |request, test_mode| Hash.from_xml(request) == Hash.from_xml(expected_request) && test_mode }.returns(mock_response)
-    response = @carrier.find_rates( @locations[:ottawa],
-                                    @locations[:beverly_hills],
-                                    @packages.values_at(:book, :wii), :test => true)
+    response = @carrier.find_rates( location_fixtures[:ottawa],
+                                    location_fixtures[:beverly_hills],
+                                    package_fixtures.values_at(:book, :wii), :test => true)
     assert_equal ["FedEx Ground"], response.rates.map(&:service_name)
     assert_equal [3836], response.rates.map(&:price)
 
@@ -311,7 +170,7 @@ class FedExTest < MiniTest::Unit::TestCase
     assert_instance_of String, rate.service_name
     assert_instance_of String, rate.service_code
     assert_instance_of Array, rate.package_rates
-    assert_equal @packages.values_at(:book, :wii), rate.packages
+    assert_equal package_fixtures.values_at(:book, :wii), rate.packages
 
     package_rate = rate.package_rates.first
     assert_instance_of Hash, package_rate
@@ -322,15 +181,15 @@ class FedExTest < MiniTest::Unit::TestCase
   def test_parsing_response_with_no_rate_reply
     expected_request = xml_fixture('fedex/ottawa_to_beverly_hills_rate_request')
     mock_response = xml_fixture('fedex/unknown_fedex_document_reply')
-    Time.any_instance.expects(:to_xml_value).returns("2009-07-20T12:01:55-04:00")
 
+    @carrier.expects(:ship_timestamp).returns(Time.parse("2009-07-20T12:01:55-04:00").in_time_zone('US/Eastern'))
     @carrier.expects(:commit).with { |request, test_mode| Hash.from_xml(request) == Hash.from_xml(expected_request) && test_mode }.returns(mock_response)
-    exception = assert_raises ActiveMerchant::Shipping::ResponseContentError do
-      @carrier.find_rates( @locations[:ottawa],
-                           @locations[:beverly_hills],
-                           @packages.values_at(:book, :wii), :test => true)
+    exception = assert_raises(ActiveShipping::ResponseContentError) do
+      @carrier.find_rates( location_fixtures[:ottawa],
+                           location_fixtures[:beverly_hills],
+                           package_fixtures.values_at(:book, :wii), :test => true)
     end
-    message = "Invalid document \n\n<?xml version='1.0' encoding='UTF-8'?>\n<RandomElement xmlns:v6='http://fedex.com/ws/rate/v6' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>\n</RandomElement>\n"
+    message = "Invalid document \n\n#{mock_response}"
     assert_equal message, exception.message
   end
 
@@ -348,9 +207,9 @@ class FedExTest < MiniTest::Unit::TestCase
   def test_delivery_range_based_on_delivery_date
     mock_response = xml_fixture('fedex/ottawa_to_beverly_hills_rate_response').gsub('CAD', 'UKL')
     @carrier.expects(:commit).returns(mock_response)
-    rate_estimates = @carrier.find_rates( @locations[:ottawa],
-                                          @locations[:beverly_hills],
-                                          @packages.values_at(:book, :wii), :test => true)
+    rate_estimates = @carrier.find_rates( location_fixtures[:ottawa],
+                                          location_fixtures[:beverly_hills],
+                                          package_fixtures.values_at(:book, :wii), :test => true)
 
     delivery_date = Date.new(2011, 7, 29)
     assert_equal delivery_date, rate_estimates.rates[0].delivery_date
@@ -365,9 +224,9 @@ class FedExTest < MiniTest::Unit::TestCase
     today = DateTime.civil(2013, 3, 15, 0, 0, 0, "-4")
 
     Timecop.freeze(today) do
-      rate_estimates = @carrier.find_rates( @locations[:ottawa],
-                                            @locations[:beverly_hills],
-                                            @packages.values_at(:book, :wii), :test => true)
+      rate_estimates = @carrier.find_rates( location_fixtures[:ottawa],
+                                            location_fixtures[:beverly_hills],
+                                            package_fixtures.values_at(:book, :wii), :test => true)
 
       # the above fixture will specify a transit time of 5 days, with 2 weekend days accounted for
       delivery_date = Date.today + 7
@@ -380,28 +239,174 @@ class FedExTest < MiniTest::Unit::TestCase
 
     @carrier.expects(:commit).returns(mock_response)
 
-    assert_raises ActiveMerchant::Shipping::ResponseContentError do
+    assert_raises ActiveShipping::ResponseContentError do
     @carrier.find_rates(
-        @locations[:ottawa],
-        @locations[:beverly_hills],
-        @packages.values_at(:book, :wii),
+        location_fixtures[:ottawa],
+        location_fixtures[:beverly_hills],
+        package_fixtures.values_at(:book, :wii),
         :test => true
       )
     end
   end
 
-  def test_response_without_notifications_raises_useful_error
+  def test_parsing_response_without_notifications
     mock_response = xml_fixture('fedex/reply_without_notifications')
 
     @carrier.expects(:commit).returns(mock_response)
 
-    assert_raises ActiveMerchant::Shipping::ResponseError do
-    @carrier.find_rates(
-        @locations[:ottawa],
-        @locations[:beverly_hills],
-        @packages.values_at(:book, :wii),
-        :test => true
-      )
+    response = @carrier.find_rates(
+      location_fixtures[:ottawa],
+      location_fixtures[:beverly_hills],
+      package_fixtures.values_at(:book, :wii),
+      :test => true
+    )
+
+    assert response.success?
+  end
+
+  ### find_tracking_info
+
+  def test_tracking_info_for_delivered_with_signature
+    mock_response = xml_fixture('fedex/tracking_response_delivered_with_signature')
+    @carrier.expects(:commit).returns(mock_response)
+
+    response = @carrier.find_tracking_info('449044304137821')
+    assert_equal '449044304137821', response.tracking_number
+    assert_equal 'AVILLALON', response.delivery_signature
+    assert response.delivered?
+    refute response.exception?
+
+    assert_equal Date.parse('2013-12-30'), response.ship_time
+    assert_equal nil, response.scheduled_delivery_date
+    assert_equal Time.parse('2014-01-02T18:23:29Z'), response.actual_delivery_date
+
+    origin_address = ActiveShipping::Location.new(
+      city: 'JEFFERSONVILLE',
+      country: 'US',
+      state: 'IN'
+    )
+    assert_equal origin_address.to_hash, response.origin.to_hash
+
+    destination_address = ActiveShipping::Location.new(
+      city: 'Miami',
+      country: 'US',
+      state: 'FL'
+    )
+    assert_equal destination_address.to_hash, response.destination.to_hash
+
+    assert_equal 11, response.shipment_events.length
+    assert_equal 'Delivered', response.latest_event.name
+  end
+
+  def test_tracking_info_for_delivered_at_door
+    mock_response = xml_fixture('fedex/tracking_response_delivered_at_door')
+    @carrier.expects(:commit).returns(mock_response)
+
+    response = @carrier.find_tracking_info('403934084723025')
+    assert_equal '403934084723025', response.tracking_number
+    assert response.delivered?
+    refute response.exception?
+    assert_equal 10, response.shipment_events.length
+    assert_equal 'Delivered', response.latest_event.name
+    assert_equal nil, response.delivery_signature
+  end
+
+  def test_tracking_info_for_in_transit
+    mock_response = xml_fixture('fedex/tracking_response_in_transit')
+    @carrier.expects(:commit).returns(mock_response)
+
+    response = @carrier.find_tracking_info('123456789012')
+    refute response.delivered?
+    refute response.exception?
+
+    assert_equal '123456789012', response.tracking_number
+    assert_equal :fedex, response.carrier
+    assert_equal 'FedEx', response.carrier_name
+    assert_equal :in_transit, response.status
+    assert_equal 'IT', response.status_code
+    assert_equal "Package available for clearance", response.status_description
+    assert_equal nil, response.delivery_signature
+
+    assert_equal Time.parse('2014-11-17T22:39:00+11:00'), response.ship_time
+    assert_equal nil, response.scheduled_delivery_date
+    assert_equal nil, response.actual_delivery_date
+
+    assert_equal nil, response.origin
+
+    destination_address = ActiveShipping::Location.new(
+      city: 'GRAFTON',
+      country: 'AU',
+      state: 'ON'
+    )
+    assert_equal destination_address.to_hash, response.destination.to_hash
+
+    assert_equal 1, response.shipment_events.length
+    assert_equal 'In transit', response.latest_event.name
+  end
+
+  def test_tracking_info_for_shipment_exception
+    mock_response = xml_fixture('fedex/tracking_response_shipment_exception')
+    @carrier.expects(:commit).returns(mock_response)
+
+    response = @carrier.find_tracking_info('957794015041323')
+    assert_equal '957794015041323', response.tracking_number
+    refute response.delivered?
+    assert response.exception?
+    assert_equal :exception, response.status
+    assert_equal "Unable to deliver", response.status_description
+
+    assert_equal Date.parse('2014-01-27'), response.ship_time
+    assert_equal nil, response.scheduled_delivery_date
+    assert_equal nil, response.actual_delivery_date
+
+    origin_address = ActiveShipping::Location.new(
+      city: 'AUSTIN',
+      country: 'US',
+      state: 'TX'
+    )
+    assert_equal origin_address.to_hash, response.origin.to_hash
+
+    destination_address = ActiveShipping::Location.new(
+      city: 'GOOSE CREEK',
+      country: 'US',
+      state: 'SC'
+    )
+    assert_equal destination_address.to_hash, response.destination.to_hash
+
+    assert_equal 8, response.shipment_events.length
+    assert_equal "Shipment exception", response.latest_event.name
+  end
+
+  def test_tracking_info_without_status
+    mock_response = xml_fixture('fedex/tracking_response_multiple_results')
+    @carrier.expects(:commit).returns(mock_response)
+
+    error = assert_raises(ActiveShipping::Error) do
+      @carrier.find_tracking_info('123456789012')
+    end
+
+    msg = 'Multiple matches were found. Specify a unqiue identifier: 2456987000~123456789012~FX, 2456979001~123456789012~FX, 2456979000~123456789012~FX'
+    assert_equal msg, error.message
+  end
+
+  def test_tracking_info_with_unknown_tracking_number
+    mock_response = xml_fixture('fedex/tracking_response_not_found')
+    @carrier.expects(:commit).returns(mock_response)
+
+    error = assert_raises(ActiveShipping::ShipmentNotFound) do
+      @carrier.find_tracking_info('123456789013')
+    end
+
+    msg = 'This tracking number cannot be found. Please check the number or contact the sender.'
+    assert_equal msg, error.message
+  end
+
+  def test_tracking_info_with_bad_tracking_number
+    mock_response = xml_fixture('fedex/tracking_response_bad_tracking_number')
+    @carrier.expects(:commit).returns(mock_response)
+
+    assert_raises(ActiveShipping::ResponseError) do
+      @carrier.find_tracking_info('abc')
     end
   end
 end

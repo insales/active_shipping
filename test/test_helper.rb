@@ -1,86 +1,76 @@
-#!/usr/bin/env ruby
-$:.unshift(File.dirname(__FILE__) + '/../lib')
+require 'bundler/setup'
 
-require 'rubygems'
-require 'bundler'
-Bundler.setup
-
-require 'test/unit'
-require 'active_shipping'
-require 'mocha/setup'
+require 'minitest/autorun'
+require 'mocha/mini_test'
 require 'timecop'
-require 'nokogiri'
+require 'business_time'
 
-XmlNode # trigger autorequire
+require 'active_shipping'
+require 'logger'
+require 'erb'
 
-module MiniTest
-  class Unit
-    class TestCase
-      include ActiveMerchant::Shipping
+# This makes sure that Minitest::Test exists when an older version of Minitest
+# (i.e. 4.x) is required by ActiveSupport.
+unless defined?(Minitest::Test)
+  Minitest::Test = MiniTest::Unit::TestCase
+end
 
-      LOCAL_CREDENTIALS = ENV['HOME'] + '/.active_merchant/fixtures.yml' unless defined?(LOCAL_CREDENTIALS)
-      DEFAULT_CREDENTIALS = File.dirname(__FILE__) + '/fixtures.yml' unless defined?(DEFAULT_CREDENTIALS)
 
-      MODEL_FIXTURES = File.dirname(__FILE__) + '/fixtures/' unless defined?(MODEL_FIXTURES)
+class Minitest::Test
+  include ActiveShipping
+end
 
-      def all_fixtures
-        @@fixtures ||= load_fixtures
+module ActiveShipping::Test
+  module Credentials
+    class NoCredentialsFound < StandardError
+      def initialize(key)
+        super("No credentials were found for '#{key}'")
       end
+    end
 
-      def fixtures(key)
-        data = all_fixtures[key] || raise(StandardError, "No fixture data was found for '#{key}'")
+    LOCAL_CREDENTIALS = ENV['HOME'] + '/.active_shipping/credentials.yml'
+    DEFAULT_CREDENTIALS = File.dirname(__FILE__) + '/credentials.yml'
 
-        data.dup
+    def credentials(key)
+      data = all_credentials[key]
+      if data.nil? || data.all? { |k,v| v.nil? || v.to_s.empty? }
+        raise NoCredentialsFound.new(key)
       end
+      data.symbolize_keys
+    end
 
-      def load_fixtures
-        file = File.exist?(LOCAL_CREDENTIALS) ? LOCAL_CREDENTIALS : DEFAULT_CREDENTIALS
-        yaml_data = YAML.load(File.read(file))
-        model_fixtures = Dir.glob(File.join(MODEL_FIXTURES, '**', '*.yml'))
-        model_fixtures.each do |file|
-          name = File.basename(file, '.yml')
-          yaml_data[name] = YAML.load(File.read(file))
+    private
+
+    def all_credentials
+      @@all_credentials ||= begin
+        [DEFAULT_CREDENTIALS, LOCAL_CREDENTIALS].inject({}) do |credentials, file_name|
+          if File.exist?(file_name)
+            yaml_data = YAML.load(ERB.new(File.read(file_name)).result(binding)).symbolize_keys
+            credentials.merge!(yaml_data)
+          end
+          credentials
         end
-
-        symbolize_keys(yaml_data)
-
-        yaml_data
-      end
-
-      def xml_fixture(path) # where path is like 'usps/beverly_hills_to_ottawa_response'
-        open(File.join(File.dirname(__FILE__), 'fixtures', 'xml', "#{path}.xml")) { |f| f.read }
-      end
-
-      def json_fixture(path) # where path is like 'usps/beverly_hills_to_ottawa_response'
-        open(File.join(File.dirname(__FILE__), 'fixtures', 'json', "#{path}.json")) { |f| f.read }
-      end
-
-      def symbolize_keys(hash)
-        return unless hash.is_a?(Hash)
-
-        hash.symbolize_keys!
-        hash.each { |_k, v| symbolize_keys(v) }
-      end
-
-      def file_fixture(filename)
-        File.open("test/fixtures/files/#{filename}", "rb") { |f| f.read }
       end
     end
   end
-end
 
-module Test
-  module Unit
-    class TestCase < MiniTest::Unit::TestCase; end
-  end
-end
+  module Fixtures
+    include ActiveShipping
 
-module ActiveMerchant
-  module Shipping
-    module TestFixtures
-      mattr_reader :packages, :locations, :line_items1
+    def xml_fixture(path) # where path is like 'usps/beverly_hills_to_ottawa_response'
+      File.read(File.join(File.dirname(__FILE__), 'fixtures', 'xml', "#{path}.xml"))
+    end
 
-      @@packages = {
+    def json_fixture(path) # where path is like 'usps/beverly_hills_to_ottawa_response'
+      File.read(File.join(File.dirname(__FILE__), 'fixtures', 'json', "#{path}.json"))
+    end
+
+    def file_fixture(filename)
+      File.read(File.join(File.dirname(__FILE__), 'fixtures', 'files', filename), mode: "rb")
+    end
+
+    def package_fixtures
+      @package_fixtures ||= {
         :just_ounces => Package.new(16, nil, :units => :imperial),
         :just_grams => Package.new(1000, nil),
         :just_zero_grams => Package.new(0, nil),
@@ -98,10 +88,13 @@ module ActiveMerchant
         :declared_value => Package.new(80, [2, 6, 12], :units => :imperial, :currency => 'USD', :value => 999.99),
         :tshirts => Package.new(10 * 16, nil, :units => :imperial),
         :shipping_container => Package.new(2200000, [2440, 2600, 6058], :description => '20 ft Standard Container', :units => :metric),
-        :largest_gold_bar => Package.new(250000, [45.5, 22.5, 17], :value => 15300000)
+        :largest_gold_bar => Package.new(250000, [45.5, 22.5, 17], :value => 15300000),
+        :books => Package.new(64, [4, 8, 6], :units => :imperial, :value => 15300000, :description => 'Books')
       }
+    end
 
-      @@locations = {
+    def location_fixtures
+      @location_fixtures ||= {
         :bare_ottawa => Location.new(:country => 'CA', :postal_code => 'K1P 1J1'),
         :bare_beverly_hills => Location.new(:country => 'US', :zip => '90210'),
         :ottawa => Location.new( :country => 'CA',
@@ -111,6 +104,14 @@ module ActiveMerchant
                                  :postal_code => 'K1P 1J1',
                                  :phone => '1-613-580-2400',
                                  :fax => '1-613-580-2495'),
+        :ottawa_with_name => Location.new( :country => 'CA',
+                                           :province => 'ON',
+                                           :city => 'Ottawa',
+                                           :name => 'Paul Ottawa',
+                                           :address1 => '110 Laurier Avenue West',
+                                           :postal_code => 'K1P 1J1',
+                                           :phone => '1-613-580-2400',
+                                           :fax => '1-613-580-2495'),
         :beverly_hills => Location.new(
                                       :country => 'US',
                                       :state => 'CA',
@@ -225,8 +226,10 @@ module ActiveMerchant
                                       :postal_code => '9743 PJ',
                                       :state => 'Groningen')
       }
+    end
 
-      @@line_items1 = [
+    def line_item_fixture
+      @line_item_fixture ||= [
         PackageItem.new("IPod Nano - 8gb - green", 200, 199.00, 2, :sku => "IPOD2008GREEN", :hs_code => "1234.12.12.12"),
         PackageItem.new("IPod Nano - 8gb - black", 200, 199.00, 1, :sku => "IPOD2008GREEN", :hs_code => "1234.12.12.12")
       ]

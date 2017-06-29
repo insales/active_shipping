@@ -1,11 +1,13 @@
 require 'test_helper'
 
-class CanadaPostTest < Test::Unit::TestCase
+class CanadaPostTest < Minitest::Test
+  include ActiveShipping::Test::Fixtures
+
   def setup
-    login = fixtures(:canada_post)
+    login = { login: 'CPC_DEMO_XML' }
 
     @carrier  = CanadaPost.new(login)
-    @french_carrier  = CanadaPost.new(login.merge(:french => true))
+    @french_carrier  = CanadaPost.new(login.merge(french: true))
 
     @request  = xml_fixture('canadapost/example_request')
     @response = xml_fixture('canadapost/example_response')
@@ -18,13 +20,8 @@ class CanadaPostTest < Test::Unit::TestCase
   end
 
   def test_parse_rate_response_french
-    assert_equal @request, @french_carrier.build_rate_request(@origin, @destination, 24, @line_items)
-  end
-
-  def test_parse_rate_response_french
     @french_carrier.expects(:ssl_post).returns(@response_french)
     rate_estimates = @french_carrier.find_rates(@origin, @destination, @line_items)
-    # rate_response = @french_carrier.send :parse_rate_response, @response_french, @origin, @desination
 
     rate_estimates.rates.each do |rate|
       assert_instance_of RateEstimate, rate
@@ -86,7 +83,7 @@ class CanadaPostTest < Test::Unit::TestCase
   def test_non_success_parse_rate_response
     @carrier.expects(:ssl_post).returns(@bad_response)
 
-    error = assert_raise ActiveMerchant::Shipping::ResponseError do
+    error = assert_raises(ActiveShipping::ResponseError) do
       @carrier.find_rates(@origin, @destination, @line_items)
     end
 
@@ -102,11 +99,13 @@ class CanadaPostTest < Test::Unit::TestCase
   end
 
   def test_build_line_items
-    xml_line_items = @carrier.send(:build_line_items, @line_items)
-    assert_instance_of XmlNode, xml_line_items
+    line_items_xml = Nokogiri::XML::Builder.new do |xml|
+      @carrier.send(:build_line_items, xml, @line_items)
+    end
 
-    xml_string = xml_line_items.to_s
-    assert_match /a box full of stuff/, xml_string
+    assert_instance_of Nokogiri::XML::Builder, line_items_xml
+    assert_equal "a box full of stuff", line_items_xml.doc.at_xpath('//description').text
+    assert_equal "0.5", line_items_xml.doc.at_xpath('//weight').text
   end
 
   def test_non_iso_country_names
@@ -134,7 +133,12 @@ class CanadaPostTest < Test::Unit::TestCase
   end
 
   def test_line_items_with_nil_values
+    @response = xml_fixture('canadapost/example_response_with_nil_value')
+    @carrier.expects(:ssl_post).returns(@response)
+
     @line_items << Package.new(500, [2, 3, 4], :description => "another box full of stuff", :value => nil)
-    @carrier.find_rates(@origin, @destination, @line_items)
+    rate_response = @carrier.find_rates(@origin, @destination, @line_items)
+
+    assert rate_response.rates.length > 0, "Expecting rateestimates even without a value specified."
   end
 end

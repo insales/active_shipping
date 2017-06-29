@@ -1,12 +1,10 @@
 require 'test_helper'
 
-class USPSTest < Test::Unit::TestCase
-  attr_reader :carrier
+class USPSTest < Minitest::Test
+  include ActiveShipping::Test::Fixtures
 
   def setup
-    @packages  = TestFixtures.packages
-    @locations = TestFixtures.locations
-    @carrier   = USPS.new(:login => 'login')
+    @carrier = USPS.new(:login => 'login')
     @tracking_response = xml_fixture('usps/tracking_response')
     @tracking_response_failure = xml_fixture('usps/tracking_response_failure')
   end
@@ -41,9 +39,9 @@ class USPSTest < Test::Unit::TestCase
 
   def test_find_tracking_info_should_return_a_tracking_response
     @carrier.expects(:commit).returns(@tracking_response)
-    assert_instance_of ActiveMerchant::Shipping::TrackingResponse, @carrier.find_tracking_info('9102901000462189604217', :test => true)
+    assert_instance_of ActiveShipping::TrackingResponse, @carrier.find_tracking_info('9102901000462189604217', :test => true)
     @carrier.expects(:commit).returns(@tracking_response)
-    assert_equal 'ActiveMerchant::Shipping::TrackingResponse', @carrier.find_tracking_info('EJ958083578US').class.name
+    assert_equal 'ActiveShipping::TrackingResponse', @carrier.find_tracking_info('EJ958083578US').class.name
   end
 
   def test_find_tracking_info_should_parse_response_into_correct_number_of_shipment_events
@@ -119,6 +117,12 @@ class USPSTest < Test::Unit::TestCase
     assert_equal true, response.delivered?
   end
 
+  def test_find_tracking_info_with_extended_response_format_should_have_correct_delivered
+    @carrier.expects(:commit).returns(xml_fixture('usps/delivered_extended_tracking_response'))
+    response = @carrier.find_tracking_info('9102901000462189604217')
+    assert_equal true, response.delivered?
+  end
+
   def test_size_codes
     assert_equal 'REGULAR', USPS.size_code_for(Package.new(2, [1, 12, 1], :units => :imperial))
     assert_equal 'LARGE', USPS.size_code_for(Package.new(2, [12.1, 1, 1], :units => :imperial))
@@ -128,31 +132,39 @@ class USPSTest < Test::Unit::TestCase
   # TODO: test_parse_domestic_rate_response
 
   def test_build_us_rate_request_uses_proper_container
-    expected_request = "<RateV4Request USERID='login'><Package ID='0'><Service>ALL</Service><FirstClassMailType/><ZipOrigination>90210</ZipOrigination><ZipDestination>10017</ZipDestination><Pounds>0</Pounds><Ounces>8.8</Ounces><Container>RECTANGULAR</Container><Size>REGULAR</Size><Width>5.51</Width><Length>7.48</Length><Height>0.79</Height><Girth>12.60</Girth><Machinable>TRUE</Machinable></Package></RateV4Request>"
-    @carrier.expects(:commit).with(:us_rates, URI.encode(expected_request), false).returns(expected_request)
+    expected_request = xml_fixture('usps/us_rate_request')
+    @carrier.expects(:commit).with(:us_rates, expected_request, false).returns(expected_request)
     @carrier.expects(:parse_rate_response)
-    package = @packages[:book]
+    package = package_fixtures[:book]
     package.options[:container] = :rectangular
-    @carrier.find_rates(@locations[:beverly_hills], @locations[:new_york], package, :test => true, :container => :rectangular)
+    @carrier.find_rates(location_fixtures[:beverly_hills], location_fixtures[:new_york], package, :test => true, :container => :rectangular)
+  end
+
+  def test_build_us_rate_request_uses_proper_container_when_none_is_specified
+    expected_request = xml_fixture('usps/us_rate_request')
+    @carrier.expects(:commit).with(:us_rates, expected_request, false).returns(expected_request)
+    @carrier.expects(:parse_rate_response)
+    package = package_fixtures[:book]
+    @carrier.find_rates(location_fixtures[:beverly_hills], location_fixtures[:new_york], package, :test => true)
   end
 
   def test_build_world_rate_request
-    expected_request = "<IntlRateV2Request USERID='login'><Revision>2</Revision><Package ID='0'><Pounds>0</Pounds><Ounces>9</Ounces><MailType>Package</MailType><GXG><POBoxFlag>N</POBoxFlag><GiftFlag>N</GiftFlag></GXG><ValueOfContents>0.0</ValueOfContents><Country><![CDATA[Canada]]></Country><Container>RECTANGULAR</Container><Size>REGULAR</Size><Width>5.51</Width><Length>7.48</Length><Height>0.79</Height><Girth>12.60</Girth><OriginZip>90210</OriginZip><AcceptanceDateTime>2015-06-01T20:34:29Z</AcceptanceDateTime><DestinationPostalCode>K1P 1J1</DestinationPostalCode></Package></IntlRateV2Request>"
-    @carrier.expects(:commit).with(:world_rates, URI.encode(expected_request), false).returns(expected_request)
+    expected_request = xml_fixture('usps/world_rate_request_without_value')
+    @carrier.expects(:commit).with(:world_rates, expected_request, false).returns(expected_request)
     @carrier.expects(:parse_rate_response)
-    @carrier.find_rates(@locations[:beverly_hills], @locations[:ottawa], @packages[:book], :test => true, :acceptance_time => Time.parse("2015-06-01T20:34:29Z"))
+    @carrier.find_rates(location_fixtures[:beverly_hills], location_fixtures[:ottawa], package_fixtures[:book], :test => true)
   end
 
   def test_build_world_rate_request_with_package_value
-    expected_request = "<IntlRateV2Request USERID='login'><Revision>2</Revision><Package ID='0'><Pounds>0</Pounds><Ounces>120</Ounces><MailType>Package</MailType><GXG><POBoxFlag>N</POBoxFlag><GiftFlag>N</GiftFlag></GXG><ValueOfContents>269.99</ValueOfContents><Country><![CDATA[Canada]]></Country><Container>RECTANGULAR</Container><Size>LARGE</Size><Width>10.00</Width><Length>15.00</Length><Height>4.50</Height><Girth>29.00</Girth><OriginZip>90210</OriginZip><AcceptanceDateTime>2015-06-01T20:34:29Z</AcceptanceDateTime><DestinationPostalCode>K1P 1J1</DestinationPostalCode></Package></IntlRateV2Request>"
-    @carrier.expects(:commit).with(:world_rates, URI.encode(expected_request), false).returns(expected_request)
+    expected_request = xml_fixture('usps/world_rate_request_with_value')
+    @carrier.expects(:commit).with(:world_rates, expected_request, false).returns(expected_request)
     @carrier.expects(:parse_rate_response)
-    @carrier.find_rates(@locations[:beverly_hills], @locations[:ottawa], @packages[:american_wii], :test => true, :acceptance_time => Time.parse("2015-06-01T20:34:29Z"))
+    @carrier.find_rates(location_fixtures[:beverly_hills], location_fixtures[:ottawa], package_fixtures[:american_wii], :test => true)
   end
 
   def test_initialize_options_requirements
-    assert_raises ArgumentError do USPS.new end
-    assert_nothing_raised { USPS.new(:login => 'blah') }
+    assert_raises(ArgumentError) { USPS.new }
+    assert USPS.new(:login => 'blah')
   end
 
   def test_parse_international_rate_response
@@ -161,9 +173,9 @@ class USPSTest < Test::Unit::TestCase
 
     response = begin
       @carrier.find_rates(
-        @locations[:beverly_hills], # imperial (U.S. origin)
-        @locations[:ottawa],
-        @packages[:american_wii],
+        location_fixtures[:beverly_hills], # imperial (U.S. origin)
+        location_fixtures[:ottawa],
+        package_fixtures[:american_wii],
         :test => true
       )
     rescue ResponseError => e
@@ -174,7 +186,7 @@ class USPSTest < Test::Unit::TestCase
 
     assert_equal expected_xml_hash, actual_xml_hash
 
-    assert_not_equal [], response.rates
+    refute response.rates.empty?
 
     assert_equal [1795, 3420, 5835, 8525, 8525], response.rates.map(&:price)
     assert_equal [1, 2, 4, 12, 15], response.rates.map(&:service_code).map(&:to_i).sort
@@ -202,7 +214,7 @@ class USPSTest < Test::Unit::TestCase
       "Max. length 24\", Max. length, height, depth combined 36\"" =>
         [{:length => 24.0, :length_plus_width_plus_height => 36.0}]
     }
-    p = @packages[:book]
+    p = package_fixtures[:book]
     limits.each do |sentence, hashes|
       dimensions = hashes[0].update(:weight => 50.0)
       service_node = build_service_node(
@@ -238,7 +250,7 @@ class USPSTest < Test::Unit::TestCase
   end
 
   def test_strip_9_digit_zip_codes
-    request = URI.decode(@carrier.send(:build_us_rate_request, @packages[:book], "90210-1234", "123456789"))
+    request = URI.decode(@carrier.send(:build_us_rate_request, package_fixtures[:book], "90210-1234", "123456789"))
     assert !(request =~ /\>90210-1234\</)
     assert request =~ /\>90210\</
     assert !(request =~ /\>123456789\</)
@@ -255,9 +267,9 @@ class USPSTest < Test::Unit::TestCase
     mock_response = xml_fixture('usps/beverly_hills_to_new_york_book_rate_response')
     @carrier.expects(:commit).returns(mock_response)
     rates_response = @carrier.find_rates(
-      @locations[:beverly_hills],
-      @locations[:new_york],
-      @packages[:book],
+      location_fixtures[:beverly_hills],
+      location_fixtures[:new_york],
+      package_fixtures[:book],
       :test => true
     )
     rate_names = [
@@ -294,8 +306,8 @@ class USPSTest < Test::Unit::TestCase
 
     response = begin
       @carrier.find_rates(
-        @locations[:beverly_hills], # imperial (U.S. origin)
-        @locations[:new_york],
+        location_fixtures[:beverly_hills], # imperial (U.S. origin)
+        location_fixtures[:new_york],
         Package.new(0, 0),
 
         :test => true,
@@ -314,8 +326,8 @@ class USPSTest < Test::Unit::TestCase
 
     begin
       @carrier.find_rates(
-        @locations[:beverly_hills], # imperial (U.S. origin)
-        @locations[:new_york],
+        location_fixtures[:beverly_hills], # imperial (U.S. origin)
+        location_fixtures[:new_york],
         Package.new(0, 0),
 
         :test => true,
@@ -332,8 +344,8 @@ class USPSTest < Test::Unit::TestCase
 
     begin
       @carrier.find_rates(
-        @locations[:beverly_hills], # imperial (U.S. origin)
-        @locations[:new_york],
+        location_fixtures[:beverly_hills], # imperial (U.S. origin)
+        location_fixtures[:new_york],
         Package.new(0, 0),
 
         :test => true,
@@ -351,9 +363,9 @@ class USPSTest < Test::Unit::TestCase
     @carrier.expects(:commit).returns(mock_response)
 
     response = @carrier.find_rates(
-      @locations[:beverly_hills],
-      @locations[:new_york],
-      @packages.values_at(:book),
+      location_fixtures[:beverly_hills],
+      location_fixtures[:new_york],
+      package_fixtures.values_at(:book),
       :test => true
     )
 
@@ -365,15 +377,16 @@ class USPSTest < Test::Unit::TestCase
   end
 
   def test_domestic_commercial_base_rates
-    @carrier = USPS.new(fixtures(:usps).merge(:commercial_base => true))
+    commercial_base_credentials = { key: "123", login: "user", password: "pass", commercial_base: true }
+    carrier = USPS.new(commercial_base_credentials)
 
     mock_response = xml_fixture('usps/beverly_hills_to_new_york_book_commercial_base_rate_response')
-    @carrier.expects(:commit).returns(mock_response)
+    carrier.expects(:commit).returns(mock_response)
 
-    response = @carrier.find_rates(
-      @locations[:beverly_hills],
-      @locations[:new_york],
-      @packages.values_at(:book),
+    response = carrier.find_rates(
+      location_fixtures[:beverly_hills],
+      location_fixtures[:new_york],
+      package_fixtures.values_at(:book),
       :test => true
     )
 
@@ -385,15 +398,16 @@ class USPSTest < Test::Unit::TestCase
   end
 
   def test_intl_commercial_base_rates
-    @carrier = USPS.new(fixtures(:usps).merge(:commercial_base => true))
+    commercial_base_credentials = { key: "123", login: "user", password: "pass", commercial_base: true }
+    carrier = USPS.new(commercial_base_credentials)
 
     mock_response = xml_fixture('usps/beverly_hills_to_ottawa_american_wii_commercial_base_rate_response')
-    @carrier.expects(:commit).returns(mock_response)
+    carrier.expects(:commit).returns(mock_response)
 
-    response = @carrier.find_rates(
-      @locations[:beverly_hills],
-      @locations[:ottawa],
-      @packages.values_at(:american_wii),
+    response = carrier.find_rates(
+      location_fixtures[:beverly_hills],
+      location_fixtures[:ottawa],
+      package_fixtures.values_at(:american_wii),
       :test => true
     )
 
@@ -401,15 +415,16 @@ class USPSTest < Test::Unit::TestCase
   end
 
   def test_domestic_commercial_plus_rates
-    @carrier = USPS.new(fixtures(:usps).merge(:commercial_plus => true))
+    commercial_plus_credentials = { key: "123", login: "user", password: "pass", commercial_plus: true }
+    carrier = USPS.new(commercial_plus_credentials)
 
     mock_response = xml_fixture('usps/beverly_hills_to_new_york_book_commercial_plus_rate_response')
-    @carrier.expects(:commit).returns(mock_response)
+    carrier.expects(:commit).returns(mock_response)
 
-    response = @carrier.find_rates(
-      @locations[:beverly_hills],
-      @locations[:new_york],
-      @packages.values_at(:book),
+    response = carrier.find_rates(
+      location_fixtures[:beverly_hills],
+      location_fixtures[:new_york],
+      package_fixtures.values_at(:book),
       :test => true
     )
 
@@ -421,15 +436,16 @@ class USPSTest < Test::Unit::TestCase
   end
 
   def test_intl_commercial_plus_rates
-    @carrier = USPS.new(fixtures(:usps).merge(:commercial_plus => true))
+    commercial_plus_credentials = { key: "123", login: "user", password: "pass", commercial_plus: true }
+    carrier = USPS.new(commercial_plus_credentials)
 
     mock_response = xml_fixture('usps/beverly_hills_to_ottawa_american_wii_commercial_plus_rate_response')
-    @carrier.expects(:commit).returns(mock_response)
+    carrier.expects(:commit).returns(mock_response)
 
-    response = @carrier.find_rates(
-      @locations[:beverly_hills],
-      @locations[:ottawa],
-      @packages.values_at(:american_wii),
+    response = carrier.find_rates(
+      location_fixtures[:beverly_hills],
+      location_fixtures[:ottawa],
+      package_fixtures.values_at(:american_wii),
       :test => true
     )
 
@@ -437,13 +453,13 @@ class USPSTest < Test::Unit::TestCase
   end
 
   def test_extract_event_details_handles_single_digit_calendar_dates
-    assert details = carrier.extract_event_details("Out for Delivery, October 9, 2013, 10:16 am, BROOKLYN, NY 11201")
+    assert details = @carrier.extract_event_details("Out for Delivery, October 9, 2013, 10:16 am, BROOKLYN, NY 11201")
     assert_equal "OUT FOR DELIVERY", details.description
     assert_equal 9, details.zoneless_time.mday
   end
 
   def test_extract_event_details_handles_double_digit_calendar_dates
-    assert details = carrier.extract_event_details("Out for Delivery, October 12, 2013, 10:16 am, BROOKLYN, NY 11201")
+    assert details = @carrier.extract_event_details("Out for Delivery, October 12, 2013, 10:16 am, BROOKLYN, NY 11201")
     assert_equal "OUT FOR DELIVERY", details.description
     assert_equal 12, details.zoneless_time.mday
   end
@@ -451,18 +467,21 @@ class USPSTest < Test::Unit::TestCase
   private
 
   def build_service_node(options = {})
-    XmlNode.new('Service') do |service_node|
-      service_node << XmlNode.new('Pounds', options[:pounds] || "0")
-      service_node << XmlNode.new('SvcCommitments', options[:svc_commitments] || "Varies")
-      service_node << XmlNode.new('Country', options[:country] || "CANADA")
-      service_node << XmlNode.new('ID', options[:id] || "3")
-      service_node << XmlNode.new('MaxWeight', options[:max_weight] || "64")
-      service_node << XmlNode.new('SvcDescription', options[:name] || "First-Class Mail International")
-      service_node << XmlNode.new('MailType', options[:mail_type] || "Package")
-      service_node << XmlNode.new('Postage', options[:postage] || "3.76")
-      service_node << XmlNode.new('Ounces', options[:ounces] || "9")
-      service_node << XmlNode.new('MaxDimensions', options[:max_dimensions].dup || "Max. length 24\", Max. length, height, depth combined 36\"")
-    end.to_xml_element
+    builder = Nokogiri::XML::Builder.new do |xml|
+      xml.Service do
+        xml.Pounds(options[:pounds] || "0")
+        xml.SvcCommitments(options[:svc_commitments] || "Varies")
+        xml.Country(options[:country] || "CANADA")
+        xml.ID(options[:id] || "3")
+        xml.MaxWeight(options[:max_weight] || "64")
+        xml.SvcDescription(options[:name] || "First-Class Mail International")
+        xml.MailType(options[:mail_type] || "Package")
+        xml.Postage(options[:postage] || "3.76")
+        xml.Ounces(options[:ounces] || "9")
+        xml.MaxDimensions(options[:max_dimensions].dup || "Max. length 24\", Max. length, height, depth combined 36\"")
+      end
+    end
+    builder.doc.root
   end
 
   def build_service_hash(options = {})
