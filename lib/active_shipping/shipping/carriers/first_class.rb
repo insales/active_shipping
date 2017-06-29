@@ -64,7 +64,7 @@ module ActiveMerchant
 
         price += @options[:packing_price].to_f if @options[:packing_price]
 
-        rate_estimation = RateEstimate.new(origin, @@name, nil, currency: 'RUR')
+        rate_estimation = RateEstimate.new(origin, @@name, nil, currency: 'RUB')
         rate_estimation.add(packages.first, price)
       end
     end

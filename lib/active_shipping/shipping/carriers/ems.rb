@@ -314,7 +314,7 @@ module ActiveMerchant
           destination,
           @@name,
           nil,
-          currency:      'RUR',
+          currency:      'RUB',
           delivery_date: delivery_date
         )
 

@@ -34,7 +34,7 @@ module ActiveMerchant
 
       def find_rates(origin, destination, packages, options = {})
         package = packages.first
-        rate_estimation = RateEstimate.new(origin, destination, @@name, nil, currency: 'RUR')
+        rate_estimation = RateEstimate.new(origin, destination, @@name, nil, currency: 'RUB')
         weight = package.kgs
         weight = DEFAULT_WEIGHT if weight < 0.001
         authorize! if @options[:login]
