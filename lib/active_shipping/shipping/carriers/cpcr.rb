@@ -54,5 +54,4 @@ module ActiveMerchant
   end
 end
 
-require 'active_shipping/shipping/carriers/cpcr/city'
 require 'active_shipping/shipping/carriers/cpcr/api'
