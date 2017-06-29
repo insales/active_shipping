@@ -7,11 +7,11 @@ class FedExTest < Test::Unit::TestCase
     @locations = TestFixtures.locations
     @carrier   = FedEx.new(fixtures(:fedex).merge(:test => true))
   end
-    
+
   def test_valid_credentials
     assert @carrier.valid_credentials?
   end
-    
+
   def test_us_to_canada
     response = nil
     assert_nothing_raised do
@@ -27,7 +27,7 @@ class FedExTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_zip_to_zip_fails
     begin
       @carrier.find_rates(
@@ -40,9 +40,9 @@ class FedExTest < Test::Unit::TestCase
       assert_match /(missing|invalid)/, e.message
     end
   end
-  
+
   # FedEx requires a valid origin and destination postal code
-  def test_rates_for_locations_with_only_zip_and_country  
+  def test_rates_for_locations_with_only_zip_and_country
     response = @carrier.find_rates(
                  @locations[:bare_beverly_hills],
                  @locations[:bare_ottawa],
@@ -51,7 +51,7 @@ class FedExTest < Test::Unit::TestCase
 
     assert response.rates.size > 0
   end
-  
+
   def test_rates_for_location_with_only_country_code
     begin
       response = @carrier.find_rates(
@@ -64,7 +64,7 @@ class FedExTest < Test::Unit::TestCase
       assert_match /(missing|invalid)/i, e.message
     end
   end
-  
+
   def test_invalid_recipient_country
     begin
       response = @carrier.find_rates(
@@ -77,7 +77,7 @@ class FedExTest < Test::Unit::TestCase
       assert_match /(missing|invalid)/i, e.message
     end
   end
-  
+
   def test_ottawa_to_beverly_hills
     response = nil
     assert_nothing_raised do
@@ -93,7 +93,7 @@ class FedExTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_ottawa_to_london
     response = nil
     assert_nothing_raised do
@@ -109,7 +109,7 @@ class FedExTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_beverly_hills_to_london
     response = nil
     assert_nothing_raised do
@@ -131,5 +131,19 @@ class FedExTest < Test::Unit::TestCase
       @carrier.find_tracking_info('077973360403984', :test => true)
     end
   end
-  
+
+  def test_different_rates_for_commercial
+    residential_response = @carrier.find_rates(
+                             @locations[:beverly_hills],
+                             @locations[:ottawa],
+                             @packages.values_at(:chocolate_stuff)
+                           )
+    commercial_response  = @carrier.find_rates(
+                             @locations[:beverly_hills],
+                             Location.from(@locations[:ottawa].to_hash, :address_type => :commercial),
+                             @packages.values_at(:chocolate_stuff)
+                           )
+
+    assert_not_equal residential_response.rates.map(&:price), commercial_response.rates.map(&:price)
+  end
 end

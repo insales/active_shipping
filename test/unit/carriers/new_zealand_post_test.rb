@@ -50,13 +50,13 @@ class NewZealandPostTest < Test::Unit::TestCase
     rate_response = @carrier.find_rates(@origin, @destination, @line_items[0])
     assert_not_nil rate_response
     assert_equal 2, rate_response.rates.size
-    
+
     # test first element
-    
+
     first_element = rate_response.rates.find{|rate| rate.service_code == 'PCBXT' }
     assert_equal 550, first_element.price
     assert_equal 'Parcel Post Tracked Zonal', first_element.service_name
-    
+
     # test last element
     last_element = first_element = rate_response.rates.find{|rate| rate.service_code == 'PCB3C4' }
     assert_equal 540, last_element.price

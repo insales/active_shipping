@@ -2,37 +2,37 @@ require 'cgi'
 
 module ActiveMerchant
   module Shipping
-    
+
     class CanadaPost < Carrier
-      
+
       # NOTE!
       # A Merchant CPC Id must be assigned to you by Canada Post
       # CPC_DEMO_XML is just a public domain account for testing
-      
+
       class CanadaPostRateResponse < RateResponse
-        
+
         attr_reader :boxes, :postal_outlets
-        
+
         def initialize(success, message, params = {}, options = {})
           @boxes = options[:boxes]
           @postal_outlets = options[:postal_outlets]
           super
         end
-        
+
       end
-      
+
       cattr_reader :name, :name_french
       @@name = "Canada Post"
       @@name_french = "Postes Canada"
-      
+
       Box = Struct.new(:name, :weight, :expediter_weight, :length, :width, :height, :packedItems)
       PackedItem = Struct.new(:quantity, :description)
       PostalOutlet = Struct.new(:sequence_no, :distance, :name, :business_name, :postal_address, :business_hours)
-      
+
       DEFAULT_TURN_AROUND_TIME = 24
       URL = "http://sellonline.canadapost.ca:30000"
-      DOCTYPE = '<!DOCTYPE eparcel SYSTEM "http://sellonline.canadapost.ca/DevelopersResources/protocolV3/eParcel.dtd">'      
-      
+      DOCTYPE = '<!DOCTYPE eparcel SYSTEM "http://sellonline.canadapost.ca/DevelopersResources/protocolV3/eParcel.dtd">'
+
       RESPONSE_CODES = {
        '1'     =>	"All calculation was done",
        '2'     =>	"Default shipping rates are returned due to a problem during the processing of the request.",
@@ -78,7 +78,7 @@ module ActiveMerchant
        '-6002' => "Unable to write to the database",
        '-50000' => "Internal problem - Please contact Sell Online Help Desk"
       }
-      
+
       NON_ISO_COUNTRY_NAMES = {
         'Russian Federation' => 'Russia'
       }
@@ -87,16 +87,16 @@ module ActiveMerchant
       def requirements
         [:login]
       end
-      
+
       def find_rates(origin, destination, line_items = [], options = {})
         rate_request = build_rate_request(origin, destination, line_items, options)
         commit(rate_request, origin, destination, options)
       end
-      
+
       def maximum_weight
         Mass.new(30, :kilograms)
       end
-      
+
       def self.default_location
         {
           :country => 'CA',
@@ -108,13 +108,13 @@ module ActiveMerchant
       end
 
       protected
-      
+
       def commit(request, origin, destination, options = {})
         response = parse_rate_response(ssl_post(URL, request), origin, destination, options)
       end
-      
+
       private
-      
+
       def build_rate_request(origin, destination, line_items = [], options = {})
         line_items = [line_items] if !line_items.is_a?(Array)
         origin = origin.is_a?(Location) ? origin : Location.new(origin)
@@ -155,13 +155,12 @@ module ActiveMerchant
           xml.elements.each('eparcel/ratesAndServicesResponse/product') do |product|
             service_name = (@options[:french] ? @@name_french : @@name) + product.get_text('name').to_s
             service_code = product.attribute('id').to_s
-            delivery_date = date_for(product.get_text('deliveryDate').to_s)
 
             rate_estimates << RateEstimate.new(origin, destination, @@name, service_name,
               :service_code => service_code,
               :total_price => product.get_text('rate').to_s,
-              :delivery_date => delivery_date,
-              :currency => 'CAD'
+              :currency => 'CAD',
+              :delivery_range => [product.get_text('deliveryDate').to_s] * 2
             )
           end
 
@@ -209,22 +208,16 @@ module ActiveMerchant
 
         CanadaPostRateResponse.new(success, message, Hash.from_xml(response), :rates => rate_estimates, :xml => response, :boxes => boxes, :postal_outlets => postal_outlets)
       end
-      
-      def date_for(string)
-        string && Time.parse(string)
-      rescue ArgumentError
-        nil
-      end
 
       def response_success?(xml)
         value = xml.get_text('eparcel/ratesAndServicesResponse/statusCode').to_s
         value == '1' || value == '2'
       end
-      
+
       def response_message(xml)
         xml.get_text('eparcel/ratesAndServicesResponse/statusMessage').to_s
       end
-      
+
       # <!-- List of items in the shopping    -->
       # <!-- cart                             -->
       # <!-- Each item is defined by :        -->
@@ -233,12 +226,12 @@ module ActiveMerchant
       # <!--   - weight      (mandatory)      -->
       # <!--   - description (mandatory)      -->
       # <!--   - ready to ship (optional)     -->
-      
+
       def build_line_items(line_items)
         xml_line_items = XmlNode.new('lineItems') do |line_items_node|
-          
+
           line_items.each do |line_item|
-            
+
             line_items_node << XmlNode.new('item') do |item|
               item << XmlNode.new('quantity', 1)
               item << XmlNode.new('weight', line_item.kilograms)
@@ -247,19 +240,19 @@ module ActiveMerchant
               item << XmlNode.new('height', line_item.cm(:height).to_s)
               item << XmlNode.new('description', line_item.options[:description] || ' ')
               item << XmlNode.new('readyToShip', line_item.options[:ready_to_ship] || nil)
-              
+
               # By setting the 'readyToShip' tag to true, Sell Online will not pack this item in the boxes defined in the merchant profile.
             end
           end
         end
-        
+
         xml_line_items
       end
-      
+
       def dollar_amount(cents)
         "%0.2f" % (cents / 100.0)
       end
-      
+
       def handle_non_iso_country_names(country)
         NON_ISO_COUNTRY_NAMES[country.to_s] || country
       end

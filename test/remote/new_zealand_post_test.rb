@@ -7,11 +7,11 @@ class NewZealandPostTest < Test::Unit::TestCase
     @locations = TestFixtures.locations
     @carrier   = NewZealandPost.new(fixtures(:new_zealand_post).merge(:test => true))
   end
-    
+
   def test_valid_credentials
     assert @carrier.valid_credentials?
   end
-    
+
   def test_successful_rates_request
     response = @carrier.find_rates(@locations[:wellington],
                                    @locations[:wellington],
@@ -27,7 +27,7 @@ class NewZealandPostTest < Test::Unit::TestCase
       @carrier.find_rates(@locations[:wellington],
                           @locations[:wellington],
                           @packages[:shipping_container])
-                   
+
       flunk "expected an ActiveMerchant::Shipping::ResponseError to be raised"
     rescue ActiveMerchant::Shipping::ResponseError => e
       assert_equal 'length Value is too large', e.message
@@ -56,7 +56,7 @@ class NewZealandPostTest < Test::Unit::TestCase
       assert_equal (wii_rates[service_code] + book_rates[service_code]), total_price
     end
 
-    # the size of the elements common between wii and book rates is the size of the 
+    # the size of the elements common between wii and book rates is the size of the
     # combined rates hash.
     assert_equal (wii_rates.keys & book_rates.keys).count, combined_rates.size
 

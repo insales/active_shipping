@@ -4,7 +4,7 @@ module ActiveMerchant
 
       # class NewZealandPostRateResponse < RateResponse
       # end
-      
+
       cattr_reader :name
       @@name = "New Zealand Post"
 
@@ -74,7 +74,7 @@ module ActiveMerchant
           rate_estimates = []
           xml.elements.each('hash/products/product') do |prod|
             if( prod.get_text('packaging') == 'postage_only' )
-              rate_estimates << RateEstimate.new(origin, 
+              rate_estimates << RateEstimate.new(origin,
                                                  destination,
                                                  @@name,
                                                  prod.get_text('service-group-description').to_s,
@@ -84,7 +84,7 @@ module ActiveMerchant
                                                  :package => package)
             end
           end
-          
+
           RateResponse.new(true, "Success", Hash.from_xml(response), :rates => rate_estimates, :xml => response)
         else
           error_message = response_message(xml)

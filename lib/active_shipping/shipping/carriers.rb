@@ -6,6 +6,10 @@ require 'active_shipping/shipping/carriers/shipwire'
 require 'active_shipping/shipping/carriers/kunaki'
 require 'active_shipping/shipping/carriers/canada_post'
 require 'active_shipping/shipping/carriers/new_zealand_post'
+require 'active_shipping/shipping/carriers/ems'
+require 'active_shipping/shipping/carriers/cpcr'
+require 'active_shipping/shipping/carriers/russianpost'
+require 'active_shipping/shipping/carriers/first_class'
 
 module ActiveMerchant
   module Shipping

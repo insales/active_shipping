@@ -1,32 +1,32 @@
 module Quantified
   class Attribute
     include Comparable
-    
+
     attr_reader :amount, :unit
-    
+
     def initialize(amount, unit)
       raise ArgumentError, "amount must be a Numeric" unless amount.is_a?(Numeric)
       @amount, @unit = amount, unit.to_sym
     end
-    
+
     def to_s
       "#{amount} #{unit}"
     end
-    
+
     def inspect
       "#<#{self.class.name}: #{amount} #{unit}>"
     end
-    
+
     def ==(other)
       (BigDecimal.new(self.amount.to_s) == BigDecimal.new(other.amount.to_s) && self.unit == other.unit) || BigDecimal.new(self.class.convert(self.amount, self.unit, other.unit).to_s) == BigDecimal.new(other.amount.to_s)
     rescue NoMethodError
       self.amount == other
     end
-    
+
     def eql?(other)
       self.class == other.class && BigDecimal.new(self.amount.to_s) == BigDecimal.new(other.amount.to_s) && self.unit == other.unit
     end
-    
+
     def <=>(other)
       if self.class == other.class
         self.class.convert(self.amount, self.unit, other.unit) <=> other.amount
@@ -34,11 +34,11 @@ module Quantified
         self.amount <=> other
       end
     end
-    
+
     def system
       self.class.units_to_systems[unit]
     end
-    
+
     def method_missing(meth, *args)
       if args.size == 1 && self.class == (other = args.first).class
         other_amount_in_self_units = self.class.convert(other.amount, other.unit, self.unit)
@@ -47,7 +47,7 @@ module Quantified
         amount.send(meth, *args)
       end
     end
-    
+
     def self.conversion_rate(from, to)
       return nil unless self.conversions[from] and self.conversions[to]
       return self.conversions[from][to] ||=
@@ -71,61 +71,61 @@ module Quantified
         end
       end
     end
-    
+
     def self.units(system=nil)
       if system
         self.systems_to_units[system.to_sym].dup
       else
-        read_inheritable_attribute(:primitives) | self.conversions.keys
+        self.primitives | self.conversions.keys
       end
     end
-    
-    def self.primitives
-      read_inheritable_attribute(:primitives).dup
-    end
-    
+
     def self.non_primitives
       self.conversions.keys
     end
-    
+
     def self.systems
       self.systems_to_units.keys
     end
-    
+
     def self.add_numeric_methods?
       self.add_numeric_methods
     end
-    
+
     def self.numeric_methods(*args)
       args.each do |arg|
         add_numeric_method_for(arg.to_sym)
       end
     end
-    
+
     protected
-    
-    class_inheritable_accessor :add_numeric_methods, :primitives, :conversions, :current_system, :systems_to_units, :units_to_systems
-    self.add_numeric_methods = false
-    self.primitives = []
-    self.conversions = {}
-    self.current_system = nil
-    self.systems_to_units = {}
-    self.units_to_systems = {}
-    
+
+    class << self
+      def primitives;              @primitives ||= [];             end
+      def add_numeric_methods;     @add_numeric_methods ||= false; end
+      def add_numeric_methods=(v); @add_numeric_methods = v;       end
+      def conversions;             @conversions ||= {};            end
+      def current_system;          @current_system;                end
+      def current_system=(v);      @current_system = v;            end
+      def systems_to_units;        @systems_to_units ||= {};       end
+      def units_to_systems;        @units_to_systems ||= {};       end
+    end
+
+
     def self.system(system_name, &block)
       old_system = self.current_system
       self.current_system = system_name.to_sym
       yield
       self.current_system = old_system
     end
-    
+
     def self.primitive(sym, options={})
       unit_sym = (options[:plural] || sym.to_s.pluralize).to_sym
       self.primitives << unit_sym
       add_to_system(unit_sym)
       add_methods_for(unit_sym, options)
     end
-    
+
     def self.add_to_system(unit_sym)
       if self.current_system
         self.units_to_systems[unit_sym] ||= begin
@@ -135,19 +135,19 @@ module Quantified
         end
       end
     end
-    
+
     def self.one(sym, options={})
       unit_sym = (options[:plural] || sym.to_s.pluralize).to_sym
       add_to_system(unit_sym)
       register_unit(unit_sym, options[:is].unit, options[:is].amount)
       add_methods_for(unit_sym, options)
     end
-    
+
     def self.register_unit(multiple_unit, other_unit, multiple)
       multiple_unit, other_unit = multiple_unit.to_sym, other_unit.to_sym
       self.conversions[multiple_unit] ||= {}
       self.conversions[other_unit] ||= {}
-      
+
       if self.primitives.include?(multiple_unit) || self.primitives.include?(other_unit)
         add_conversion(multiple_unit, other_unit, multiple)
       else
@@ -160,19 +160,19 @@ module Quantified
         end
       end
     end
-    
+
     def self.add_conversion(multiple_unit, other_unit, multiple)
       self.conversions[multiple_unit] ||={}
       self.conversions[multiple_unit][other_unit] = multiple
       self.conversions[other_unit] ||= {}
       self.conversions[other_unit][multiple_unit] = (1.0 / multiple)
     end
-    
+
     def self.convert(amount, from, to)
       from, to = from.to_sym, to.to_sym
       amount * conversion_rate(from, to)
     end
-    
+
     def self.add_methods_for(sym, options={})
       add_conversion_method_for(sym, options)
       add_numeric_method = if options.has_key?(:add_numeric_methods)
@@ -182,7 +182,7 @@ module Quantified
       end
       add_numeric_method_for(sym.to_s, options) if add_numeric_method
     end
-    
+
     def self.add_conversion_method_for(sym, options={})
       unit_name = sym.to_s
       class_eval do
@@ -193,7 +193,7 @@ module Quantified
         alias_method("in_#{unit_name}","to_#{unit_name}")
       end
     end
-    
+
     def self.add_numeric_method_for(unit_name, options={})
       unit_name = unit_name.to_sym
       raise ArgumentError, "#{unit_name.inspect} is not a unit in #{self.name}" unless units.include?(unit_name)
