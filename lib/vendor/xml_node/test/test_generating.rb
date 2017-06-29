@@ -5,10 +5,9 @@ require "test/unit"
 require File.dirname(__FILE__) + "/../lib/xml_node"
 
 class TestXmlNode < Test::Unit::TestCase
-
   def test_init_sanity
     assert_raise(ArgumentError) { XmlNode.new }
-    assert_nothing_raised { XmlNode.new('feed')}
+    assert_nothing_raised { XmlNode.new('feed') }
     assert_nothing_raised { XmlNode.new('feed', 'content') }
     assert_nothing_raised { XmlNode.new('feed', :attribute => true) }
     assert_nothing_raised { XmlNode.new('feed', 'content', :attribute => true) }
@@ -23,7 +22,7 @@ class TestXmlNode < Test::Unit::TestCase
 
   def test_nesting
     assert_equal '<feed><element/></feed>', XmlNode.new('feed') { |n| n << XmlNode.new('element') }.to_s
-    assert_equal '<feed><element><id>1</id></element></feed>', XmlNode.new('feed') { |n| n << XmlNode.new('element') { |n| n << XmlNode.new('id', '1')} }.to_s
+    assert_equal '<feed><element><id>1</id></element></feed>', XmlNode.new('feed') { |n| n << XmlNode.new('element') { |n| n << XmlNode.new('id', '1') } }.to_s
   end
 
   def test_cdata
@@ -68,7 +67,7 @@ class TestXmlNode < Test::Unit::TestCase
   end
 
   def test_add_array_of_nodes
-    assert_equal '<feed><e>1</e><e>2</e><e>3</e></feed>', XmlNode.new('feed') { |n| n << [1,2,3].collect{ |i| XmlNode.new('e', i) }}.to_s
+    assert_equal '<feed><e>1</e><e>2</e><e>3</e></feed>', XmlNode.new('feed') { |n| n << [1, 2, 3].collect { |i| XmlNode.new('e', i) } }.to_s
   end
 
   def test_boolean
@@ -80,7 +79,6 @@ class TestXmlNode < Test::Unit::TestCase
     assert_equal '<nil/>', XmlNode.new('nil', nil).to_s
   end
 
-
   def test_dont_choke_on_nil_pushing
     feed = XmlNode.new 'feed'
     assert_nothing_raised do
@@ -88,7 +86,4 @@ class TestXmlNode < Test::Unit::TestCase
     end
     assert_equal '<feed/>', feed.to_s
   end
-
-
-
 end

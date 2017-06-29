@@ -1,7 +1,6 @@
 require 'test_helper'
 
 class CanadaPostTest < Test::Unit::TestCase
-
   def setup
     login = fixtures(:canada_post)
 
@@ -30,6 +29,7 @@ class CanadaPostTest < Test::Unit::TestCase
     rate_estimates.rates.each do |rate|
       assert_instance_of RateEstimate, rate
       assert_instance_of DateTime, rate.delivery_date
+      assert_instance_of DateTime, rate.shipping_date
       assert_instance_of String, rate.service_name
       assert_instance_of Fixnum, rate.total_price
     end
@@ -48,7 +48,6 @@ class CanadaPostTest < Test::Unit::TestCase
         assert_instance_of String, p.description
       end
     end
-
   end
 
   def test_build_rate_request
@@ -63,6 +62,7 @@ class CanadaPostTest < Test::Unit::TestCase
     rate_estimates.rates.each do |rate|
       assert_instance_of RateEstimate, rate
       assert_instance_of DateTime, rate.delivery_date
+      assert_instance_of DateTime, rate.shipping_date
       assert_instance_of String, rate.service_name
       assert_instance_of Fixnum, rate.total_price
     end
@@ -84,13 +84,21 @@ class CanadaPostTest < Test::Unit::TestCase
   end
 
   def test_non_success_parse_rate_response
-    assert_raise ActiveMerchant::Shipping::ResponseError do
-      @carrier.expects(:ssl_post).returns(@bad_response)
-      rate_estimates = @carrier.find_rates(@origin, @destination, @line_items)
+    @carrier.expects(:ssl_post).returns(@bad_response)
 
-      assert_equal [], rate_estimates.rates
-      assert_equal [], rate_estimates.boxes
+    error = assert_raise ActiveMerchant::Shipping::ResponseError do
+      @carrier.find_rates(@origin, @destination, @line_items)
     end
+
+    assert_equal 'Parcel too heavy to be shipped with CPC.', error.message
+  end
+
+  def test_turn_around_time
+    @carrier.expects(:commit).with do |request, _options|
+      parsed_request = Hash.from_xml(request)
+      parsed_request['eparcel']['ratesAndServicesRequest']['turnAroundTime'] == "0"
+    end
+    @carrier.find_rates(@origin, @destination, @line_items, :turn_around_time => 0)
   end
 
   def test_build_line_items
@@ -103,13 +111,11 @@ class CanadaPostTest < Test::Unit::TestCase
 
   def test_non_iso_country_names
     @destination[:country] = 'RU'
-
     @carrier.expects(:ssl_post).with(anything, regexp_matches(%r{<country>Russia</country>})).returns(@response)
-    rate_estimates = @carrier.find_rates(@origin, @destination, @line_items)
+    @carrier.find_rates(@origin, @destination, @line_items)
   end
 
   def test_delivery_range_based_on_delivery_date
-    Date.expects(:today).returns(Date.new(2010, 8, 3)).at_least_once
     @carrier.expects(:ssl_post).returns(@response)
     rate_estimates = @carrier.find_rates(@origin, @destination, @line_items)
 
@@ -125,5 +131,10 @@ class CanadaPostTest < Test::Unit::TestCase
     rate_estimates = @carrier.find_rates(@origin, @destination, @line_items)
 
     assert_equal [], rate_estimates.rates[0].delivery_range
+  end
+
+  def test_line_items_with_nil_values
+    @line_items << Package.new(500, [2, 3, 4], :description => "another box full of stuff", :value => nil)
+    @carrier.find_rates(@origin, @destination, @line_items)
   end
 end

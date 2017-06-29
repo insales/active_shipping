@@ -1,7 +1,7 @@
 module ActiveMerchant #:nodoc:
   module Shipping #:nodoc:
     class Location
-      ADDRESS_TYPES = %w{residential commercial po_box}
+      ADDRESS_TYPES = %w(residential commercial po_box)
 
       attr_reader :options,
                   :country,
@@ -42,7 +42,7 @@ module ActiveMerchant #:nodoc:
         self.address_type = options[:address_type]
       end
 
-      def self.from(object, options={})
+      def self.from(object, options = {})
         return object if object.is_a? ActiveMerchant::Shipping::Location
         attr_mappings = {
           :name => [:name],
@@ -74,7 +74,7 @@ module ActiveMerchant #:nodoc:
           end
         end
         attributes.delete(:address_type) unless ADDRESS_TYPES.include?(attributes[:address_type].to_s)
-        self.new(attributes.update(options))
+        new(attributes.update(options))
       end
 
       def country_code(format = :alpha2)
@@ -108,10 +108,12 @@ module ActiveMerchant #:nodoc:
         }
       end
 
-      def to_xml(options={})
+      def to_xml(options = {})
         options[:root] ||= "location"
         to_hash.to_xml(options)
       end
+
+      def unknown?; country_code == 'ZZ' end
 
       def to_s
         prettyprint.gsub(/\n/, ' ')
@@ -119,10 +121,10 @@ module ActiveMerchant #:nodoc:
 
       def prettyprint
         chunks = []
-        chunks << [@name, @address1,@address2,@address3].reject {|e| e.blank?}.join("\n")
-        chunks << [@city,@province,@postal_code].reject {|e| e.blank?}.join(', ')
+        chunks << [@name, @address1, @address2, @address3].reject(&:blank?).join("\n")
+        chunks << [@city, @province, @postal_code].reject(&:blank?).join(', ')
         chunks << @country
-        chunks.reject {|e| e.blank?}.join("\n")
+        chunks.reject(&:blank?).join("\n")
       end
 
       def inspect
@@ -131,7 +133,21 @@ module ActiveMerchant #:nodoc:
         string << "\nFax: #{@fax}" unless @fax.blank?
         string
       end
-    end
 
+      # Returns the postal code as a properly formatted Zip+4 code, e.g. "77095-2233"
+      def zip_plus_4
+        if /(\d{5})(\d{4})/ =~ @postal_code
+          return "#{$1}-#{$2}"
+        elsif /\d{5}-\d{4}/ =~ @postal_code
+          return @postal_code
+        else
+          nil
+        end
+      end
+
+      def address2_and_3
+        [address2, address3].reject(&:blank?).join(", ")
+      end
+    end
   end
 end

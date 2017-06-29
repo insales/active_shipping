@@ -98,4 +98,40 @@ class LocationTest < Test::Unit::TestCase
     location_xml = @locations[:ottawa].to_xml(:root => "destination")
     assert_equal @locations[:ottawa].to_hash, Hash.from_xml(location_xml)["destination"].symbolize_keys
   end
+
+  def test_zip_plus_4_with_no_dash
+    zip = "33333"
+    plus_4 = "1234"
+    zip_plus_4 = "#{zip}-#{plus_4}"
+    location = Location.from(:zip => "#{zip}#{plus_4}")
+    assert_equal zip_plus_4, location.zip_plus_4
+  end
+
+  def test_zip_plus_4_with_dash
+    zip = "33333"
+    plus_4 = "1234"
+    zip_plus_4 = "#{zip}-#{plus_4}"
+    location = Location.from(:zip => zip_plus_4)
+    assert_equal zip_plus_4, location.zip_plus_4
+  end
+
+  def test_address2_and_3_is_nil
+    location = @locations[:ottawa]
+    assert_nil location.address2
+    assert_nil location.address3
+    assert location.address2_and_3.blank?
+  end
+
+  def test_address2_and_3
+    address2 = 'Apt 613'
+    address3 = 'Victory Lane'
+    location = Location.from(:address2 => address2)
+    assert_equal 'Apt 613', location.address2_and_3
+
+    location = Location.from(:address2 => address2, :address3 => address3)
+    assert_equal 'Apt 613, Victory Lane', location.address2_and_3
+
+    location = Location.from(:address3 => address3)
+    assert_equal 'Victory Lane', location.address2_and_3
+  end
 end

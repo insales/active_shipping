@@ -1,8 +1,6 @@
 module ActiveMerchant #:nodoc:
   module Shipping
-
     class RateResponse < Response
-
       attr_reader :rates
 
       def initialize(success, message, params = {}, options = {})
@@ -12,8 +10,6 @@ module ActiveMerchant #:nodoc:
 
       alias_method :estimates, :rates
       alias_method :rate_estimates, :rates
-
     end
-
   end
 end

@@ -1,7 +1,5 @@
 module ActiveMerchant #:nodoc:
-
   module Shipping #:nodoc:
-
     class Error < ActiveMerchant::ActiveMerchantError
     end
 
@@ -19,7 +17,6 @@ module ActiveMerchant #:nodoc:
     end
 
     class Response
-
       attr_reader :params
       attr_reader :message
       attr_reader :test

@@ -19,7 +19,7 @@ module ActiveMerchant
                      'UK'  => 'United Kingdom'
                    }
 
-      CARRIERS = [ "UPS", "USPS", "FedEx", "Royal Mail", "Parcelforce", "Pharos", "Eurotrux", "Canada Post", "DHL" ]
+      CARRIERS = ["UPS", "USPS", "FedEx", "Royal Mail", "Parcelforce", "Pharos", "Eurotrux", "Canada Post", "DHL"]
 
       SUCCESS = "OK"
       SUCCESS_MESSAGE = "Successfully received the shipping rates"
@@ -33,14 +33,17 @@ module ActiveMerchant
 
       def valid_credentials?
         location = self.class.default_location
-        find_rates(location, location, Package.new(100, [5,15,30]),
-          :items => [ { :sku => '', :quantity => 1 } ]
+        find_rates(location, location, Package.new(100, [5, 15, 30]),
+                   :items => [{ :sku => '', :quantity => 1 }]
         )
-      rescue ActiveMerchant::Shipping::ResponseError => e
-        e.message != "Could not verify Username/EmailAddress and Password combination"
+      rescue ActiveMerchant::Shipping::ResponseError
+        true
+      rescue ActiveMerchant::ResponseError => e
+        e.response.code != '401'
       end
 
       private
+
       def requirements
         REQUIRED_OPTIONS
       end
@@ -82,6 +85,7 @@ module ActiveMerchant
           xml.tag! 'Address1', destination.address1
           xml.tag! 'Address2', destination.address2 unless destination.address2.blank?
           xml.tag! 'Address3', destination.address3 unless destination.address3.blank?
+          xml.tag! 'Company', destination.company unless destination.company.blank?
           xml.tag! 'City', destination.city
           xml.tag! 'State', destination.state unless destination.state.blank?
           xml.tag! 'Country', destination.country_code
@@ -89,7 +93,7 @@ module ActiveMerchant
         end
       end
 
-     # Code is limited to 12 characters
+      # Code is limited to 12 characters
       def add_item(xml, item, index)
         xml.tag! 'Item', :num => index do
           xml.tag! 'Code', item[:sku]
@@ -104,26 +108,26 @@ module ActiveMerchant
         response = parse( ssl_post(URL, "RateRequestXML=#{CGI.escape(request)}") )
 
         RateResponse.new(response["success"], response["message"], response,
-          :xml     => response,
-          :rates   => build_rate_estimates(response, origin, destination),
-          :request => last_request
+                         :xml     => response,
+                         :rates   => build_rate_estimates(response, origin, destination),
+                         :request => last_request
         )
       end
 
       def build_rate_estimates(response, origin, destination)
         response["rates"].collect do |quote|
           RateEstimate.new(origin, destination, carrier_for(quote["service"]), quote["service"],
-            :service_code    => quote["method"],
-            :total_price     => quote["cost"],
-            :currency        => quote["currency"],
-            :delivery_range  => [ timestamp_from_business_day(quote["delivery_min"]),
-                                  timestamp_from_business_day(quote["delivery_max"]) ]
+                           :service_code    => quote["method"],
+                           :total_price     => quote["cost"],
+                           :currency        => quote["currency"],
+                           :delivery_range  => [timestamp_from_business_day(quote["delivery_min"]),
+                                                timestamp_from_business_day(quote["delivery_max"])]
           )
         end
       end
 
       def carrier_for(service)
-        CARRIERS.dup.find{ |carrier| service.to_s =~ /^#{carrier}/i } || service.to_s.split(" ").first
+        CARRIERS.dup.find { |carrier| service.to_s =~ /^#{carrier}/i } || service.to_s.split(" ").first
       end
 
       def parse(xml)
@@ -160,6 +164,8 @@ module ActiveMerchant
         end
 
         response
+      rescue NoMethodError => e
+        raise ActiveMerchant::Shipping::ResponseContentError.new(e, xml)
       end
 
       def parse_child_text(parent, name)

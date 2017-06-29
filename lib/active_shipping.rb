@@ -25,7 +25,7 @@ $:.unshift File.dirname(__FILE__)
 
 begin
   require 'active_support/all'
-rescue LoadError => e
+rescue LoadError
   require 'rubygems'
   gem "activesupport", ">= 2.3.5"
   require "active_support/all"
@@ -41,6 +41,8 @@ require 'active_shipping/shipping/base'
 require 'active_shipping/shipping/response'
 require 'active_shipping/shipping/rate_response'
 require 'active_shipping/shipping/tracking_response'
+require 'active_shipping/shipping/shipping_response'
+require 'active_shipping/shipping/label_response'
 require 'active_shipping/shipping/package'
 require 'active_shipping/shipping/location'
 require 'active_shipping/shipping/rate_estimate'
@@ -48,3 +50,4 @@ require 'active_shipping/shipping/shipment_event'
 require 'active_shipping/shipping/shipment_packer'
 require 'active_shipping/shipping/carrier'
 require 'active_shipping/shipping/carriers'
+require 'active_shipping/shipping/errors'

@@ -1,7 +1,6 @@
 require 'test_helper'
 
 class CanadaPostTest < Test::Unit::TestCase
-
   def setup
     @packages  = TestFixtures.packages
     @locations = TestFixtures.locations

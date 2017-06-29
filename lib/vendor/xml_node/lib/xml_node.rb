@@ -26,19 +26,19 @@ end
 
 class Time
   def to_xml_value
-    self.xmlschema
+    xmlschema
   end
 end
 
 class DateTime
   def to_xml_value
-    self.xmlschema
+    xmlschema
   end
 end
 
 class Date
   def to_xml_value
-    self.to_time.xmlschema
+    to_time.xmlschema
   end
 end
 
@@ -113,10 +113,10 @@ class XmlNode
     @child_nodes = {}
 
     if attributes = args.last.is_a?(Hash) ? args.pop : nil
-      attributes.each { |k,v| @element.add_attribute(k.to_s, v.to_xml_value) }
+      attributes.each { |k, v| @element.add_attribute(k.to_s, v.to_xml_value) }
     end
 
-    if !args[0].nil?
+    unless args[0].nil?
       @element.text = args[0].to_xml_value
     end
 
@@ -126,7 +126,7 @@ class XmlNode
   end
 
   def self.parse(xml)
-    self.new(REXML::Document.new(xml).root)
+    new(REXML::Document.new(xml).root)
   end
 
   def children
@@ -156,7 +156,7 @@ class XmlNode
     new_cdata = REXML::CData.new( value )
     @element.children.each do |c|
       if c.is_a?(REXML::CData)
-        return @element.replace_child(c,new_cdata)
+        return @element.replace_child(c, new_cdata)
       end
     end
     @element << new_cdata
@@ -218,5 +218,4 @@ class XmlNode
     document.write( xml, 0)
     xml.join
   end
-
 end

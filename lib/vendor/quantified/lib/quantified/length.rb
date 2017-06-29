@@ -10,7 +10,7 @@ module Quantified
 
     system :imperial do
       primitive :inch
-      one :inch, :is => Length.new(2.540, :centimetres)
+      one :inch, :is => Length.new(0.0254, :metres)
 
       one :foot, :plural => :feet, :is => Length.new(12, :inches)
       one :yard, :is => Length.new(3, :feet)

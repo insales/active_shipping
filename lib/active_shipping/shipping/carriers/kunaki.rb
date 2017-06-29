@@ -10,7 +10,7 @@ module ActiveMerchant
 
       URL = 'https://Kunaki.com/XMLService.ASP'
 
-      CARRIERS = [ "UPS", "USPS", "FedEx", "Royal Mail", "Parcelforce", "Pharos", "Eurotrux", "Canada Post", "DHL" ]
+      CARRIERS = ["UPS", "USPS", "FedEx", "Royal Mail", "Parcelforce", "Pharos", "Eurotrux", "Canada Post", "DHL"]
 
       COUNTRIES = {
         'AR' => 'Argentina',
@@ -76,6 +76,7 @@ module ActiveMerchant
       end
 
       private
+
       def build_request(destination, options)
         xml = Builder::XmlMarkup.new
         xml.instruct!
@@ -83,7 +84,7 @@ module ActiveMerchant
           xml.tag! 'AddressInfo' do
             xml.tag! 'Country', COUNTRIES[destination.country_code]
 
-            state = ['US', 'CA'].include?(destination.country_code.to_s) ? destination.state : ''
+            state = %w(US CA).include?(destination.country_code.to_s) ? destination.state : ''
 
             xml.tag! 'State_Province', state
             xml.tag! 'PostalCode', destination.zip
@@ -105,21 +106,21 @@ module ActiveMerchant
         response = parse( ssl_post(URL, request, "Content-Type" => "text/xml") )
 
         RateResponse.new(success?(response), message_from(response), response,
-          :rates => build_rate_estimates(response, origin, destination)
+                         :rates => build_rate_estimates(response, origin, destination)
         )
       end
 
       def build_rate_estimates(response, origin, destination)
         response["Options"].collect do |quote|
           RateEstimate.new(origin, destination, carrier_for(quote["Description"]), quote["Description"],
-            :total_price  => quote["Price"],
-            :currency     => "USD"
+                           :total_price  => quote["Price"],
+                           :currency     => "USD"
           )
         end
       end
 
       def carrier_for(service)
-        CARRIERS.dup.find{ |carrier| service.to_s =~ /^#{carrier}/i } || service.to_s.split(" ").first
+        CARRIERS.dup.find { |carrier| service.to_s =~ /^#{carrier}/i } || service.to_s.split(" ").first
       end
 
       def parse(xml)

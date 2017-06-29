@@ -1,7 +1,6 @@
 module ActiveMerchant
   module Shipping
     class Carrier
-
       include RequiresParameters
       include PostsData
       include Quantified
@@ -12,7 +11,7 @@ module ActiveMerchant
 
       # Credentials should be in options hash under keys :login, :password and/or :key.
       def initialize(options = {})
-        requirements.each {|key| requires!(options, key)}
+        requirements.each { |key| requires!(options, key) }
         @options = options
         @last_request = nil
         @test_mode = @options[:test]
@@ -27,12 +26,16 @@ module ActiveMerchant
       def find_rates(origin, destination, packages, options = {})
       end
 
+      # Override with whatever you need to get a shipping label
+      def create_shipment(origin, destination, packages, options = {})
+      end
+
       # Validate credentials with a call to the API. By default this just does a find_rates call
       # with the orgin and destination both as the carrier's default_location. Override to provide
       # alternate functionality, such as checking for test_mode to use test servers, etc.
       def valid_credentials?
         location = self.class.default_location
-        find_rates(location,location,Package.new(100, [5,15,30]), :test => test_mode)
+        find_rates(location, location, Package.new(100, [5, 15, 30]), :test => test_mode)
       rescue ActiveMerchant::Shipping::ResponseError
         false
       else
@@ -64,6 +67,17 @@ module ActiveMerchant
       # Use after building the request to save for later inspection. Probably won't ever be overridden.
       def save_request(r)
         @last_request = r
+      end
+
+      def timestamp_from_business_day(days)
+        return unless days
+        date = DateTime.now.utc
+        days.times do
+          begin
+            date = date + 1
+          end while [0, 6].include?(date.wday)
+        end
+        date
       end
     end
   end

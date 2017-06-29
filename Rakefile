@@ -1,6 +1,5 @@
 require 'bundler'
-Bundler::GemHelper.install_tasks
-
+require 'bundler/gem_tasks'
 require 'rake/testtask'
 
 namespace :test do
@@ -21,4 +20,4 @@ desc "Default Task"
 task :default => 'test:units'
 
 desc "Run the unit and remote tests"
-task :test => ['test:units','test:remote']
+task :test => %w(test:units test:remote)

@@ -1,22 +1,21 @@
 require 'test_helper'
 
 class PackageTest < Test::Unit::TestCase
-
   GRAMS_IN_AN_OUNCE = 28.349523125
   OUNCES_IN_A_GRAM = 0.0352739619495804
   INCHES_IN_A_CM = 0.393700787401575
   CM_IN_AN_INCH = 2.54
 
   def setup
-    @imperial_package = Package.new(65, [3,6,8.5],
-                          :units => :imperial,
-                          :value => 10.65,
-                          :currency => 'USD'
+    @imperial_package = Package.new(65, [3, 6, 8.5],
+                                    :units => :imperial,
+                                    :value => 10.65,
+                                    :currency => 'USD'
                         )
 
-    @metric_package = Package.new(100, [5,18.5,40],
-                        :value => 860,
-                        :currency => 'CAD'
+    @metric_package = Package.new(100, [5, 18.5, 40],
+                                  :value => 860,
+                                  :currency => 'CAD'
                       )
 
     @packages = TestFixtures.packages
@@ -57,9 +56,12 @@ class PackageTest < Test::Unit::TestCase
     end
     assert_equal 675.0, wii.inches(:volume)
     assert_equal 675.0, wii.inches(:box_volume)
-
-
     assert_equal 'GBP', wii.currency
     assert_equal 26999, wii.value
+  end
+
+  def test_package_from_mass
+    pkg = Package.new(Quantified::Mass.new(10, :pounds), [])
+    assert_equal 10, pkg.weight
   end
 end

@@ -1,7 +1,6 @@
 require 'test_helper'
 
 class FedExTest < Test::Unit::TestCase
-
   def setup
     @packages  = TestFixtures.packages
     @locations = TestFixtures.locations
@@ -28,17 +27,58 @@ class FedExTest < Test::Unit::TestCase
     end
   end
 
-  def test_zip_to_zip_fails
-    begin
-      @carrier.find_rates(
-        Location.new(:zip => 40524),
-        Location.new(:zip => 40515),
-        @packages[:wii]
-      )
-    rescue ResponseError => e
-      assert_match /country\s?code/i, e.message
-      assert_match /(missing|invalid)/, e.message
+  def test_freight
+    skip 'Cannot find the fedex freight creds. Whomp, whomp.'
+    response = nil
+    freight = fixtures(:fedex_freight)
+
+    shipping_location = Location.new( address1: freight[:shipping_address1],
+                                      address2: freight[:shipping_address2],
+                                      city: freight[:shipping_city],
+                                      state: freight[:shipping_state],
+                                      postal_code: freight[:shipping_postal_code],
+                                      country: freight[:shipping_country])
+
+    billing_location = Location.new(  address1: freight[:billing_address1],
+                                      address2: freight[:billing_address2],
+                                      city: freight[:billing_city],
+                                      state: freight[:billing_state],
+                                      postal_code: freight[:billing_postal_code],
+                                      country: freight[:billing_country])
+
+    freight_options = {
+      account: freight[:account],
+      billing_location: billing_location,
+      payment_type: freight[:payment_type],
+      freight_class: freight[:freight_class],
+      packaging: freight[:packaging],
+      role: freight[:role]
+    }
+
+    assert_nothing_raised do
+      response = @carrier.find_rates(
+                   shipping_location,
+                   @locations[:ottawa],
+                   @packages.values_at(:wii),
+                   freight: freight_options
+                 )
+      assert !response.rates.blank?
+      response.rates.each do |rate|
+        assert_instance_of String, rate.service_name
+        assert_instance_of Fixnum, rate.price
+      end
     end
+  end
+
+  def test_zip_to_zip_fails
+    @carrier.find_rates(
+      Location.new(:zip => 40524),
+      Location.new(:zip => 40515),
+      @packages[:wii]
+    )
+  rescue ResponseError => e
+    assert_match /country\s?code/i, e.message
+    assert_match /(missing|invalid)/, e.message
   end
 
   # FedEx requires a valid origin and destination postal code
@@ -53,29 +93,25 @@ class FedExTest < Test::Unit::TestCase
   end
 
   def test_rates_for_location_with_only_country_code
-    begin
-      response = @carrier.find_rates(
-                   @locations[:bare_beverly_hills],
-                   Location.new(:country => 'CA'),
-                   @packages.values_at(:wii)
-                 )
-    rescue ResponseError => e
-      assert_match /postal code/i, e.message
-      assert_match /(missing|invalid)/i, e.message
-    end
+    @carrier.find_rates(
+      @locations[:bare_beverly_hills],
+      Location.new(:country => 'CA'),
+      @packages.values_at(:wii)
+    )
+  rescue ResponseError => e
+    assert_match /postal code/i, e.message
+    assert_match /(missing|invalid)/i, e.message
   end
 
   def test_invalid_recipient_country
-    begin
-      response = @carrier.find_rates(
-                   @locations[:bare_beverly_hills],
-                   Location.new(:country => 'JP', :zip => '108-8361'),
-                   @packages.values_at(:wii)
-                 )
-    rescue ResponseError => e
-      assert_match /postal code/i, e.message
-      assert_match /(missing|invalid)/i, e.message
-    end
+    @carrier.find_rates(
+      @locations[:bare_beverly_hills],
+      Location.new(:country => 'JP', :zip => '108-8361'),
+      @packages.values_at(:wii)
+    )
+  rescue ResponseError => e
+    assert_match /postal code/i, e.message
+    assert_match /(missing|invalid)/i, e.message
   end
 
   def test_ottawa_to_beverly_hills
@@ -110,6 +146,38 @@ class FedExTest < Test::Unit::TestCase
     end
   end
 
+  def test_beverly_hills_to_netherlands
+    response = nil
+    assert_nothing_raised do
+      response = @carrier.find_rates(
+                   @locations[:beverly_hills],
+                   @locations[:netherlands],
+                   @packages.values_at(:book, :wii)
+                 )
+      assert !response.rates.blank?
+      response.rates.each do |rate|
+        assert_instance_of String, rate.service_name
+        assert_instance_of Fixnum, rate.price
+      end
+    end
+  end
+
+  def test_beverly_hills_to_new_york
+    response = nil
+    assert_nothing_raised do
+      response = @carrier.find_rates(
+                   @locations[:beverly_hills],
+                   @locations[:new_york],
+                   @packages.values_at(:book, :wii)
+                 )
+      assert !response.rates.blank?
+      response.rates.each do |rate|
+        assert_instance_of String, rate.service_name
+        assert_instance_of Fixnum, rate.price
+      end
+    end
+  end
+
   def test_beverly_hills_to_london
     response = nil
     assert_nothing_raised do
@@ -128,7 +196,13 @@ class FedExTest < Test::Unit::TestCase
 
   def test_tracking
     assert_nothing_raised do
-      @carrier.find_tracking_info('077973360403984', :test => true)
+      @carrier.find_tracking_info('123456789012', :test => true)
+    end
+  end
+
+  def test_tracking_with_bad_number
+    assert_raises ResponseError do
+      @carrier.find_tracking_info('12345')
     end
   end
 

@@ -13,6 +13,6 @@ class BaseTest < Test::Unit::TestCase
   end
 
   def test_get_unknown_carrier
-    assert_raise(NameError){ Base.carrier(:polar_north) }
+    assert_raise(NameError) { Base.carrier(:polar_north) }
   end
 end
