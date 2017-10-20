@@ -7,8 +7,8 @@ module ActiveShipping
   class FedEx < Carrier
     self.retry_safe = true
 
-    cattr_reader :name
-    @@name = "FedEx"
+    cattr_reader :carrier_name
+    @@carrier_name = "FedEx"
 
     TEST_URL = 'https://gatewaybeta.fedex.com:443/xml'
     LIVE_URL = 'https://gateway.fedex.com:443/xml'
@@ -354,7 +354,7 @@ module ActiveShipping
         delivery_range = delivery_range_from(transit_time, max_transit_time, delivery_timestamp, options)
 
         currency = rated_shipment.at('RatedShipmentDetails/ShipmentRateDetail/TotalNetCharge/Currency').text
-        RateEstimate.new(origin, destination, @@name,
+        RateEstimate.new(origin, destination, @@carrier_name,
              self.class.service_name_for_code(service_type),
              :service_code => service_code,
              :total_price => rated_shipment.at('RatedShipmentDetails/ShipmentRateDetail/TotalNetCharge/Amount').text.to_f,
@@ -483,7 +483,7 @@ module ActiveShipping
       end
 
       TrackingResponse.new(success, message, Hash.from_xml(response),
-                           :carrier => @@name,
+                           :carrier => @@carrier_name,
                            :xml => response,
                            :request => last_request,
                            :status => status,

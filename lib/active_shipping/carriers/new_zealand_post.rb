@@ -2,8 +2,8 @@ require 'active_support/core_ext/object/to_query'
 
 module ActiveShipping
   class NewZealandPost < Carrier
-    cattr_reader :name
-    @@name = "New Zealand Post"
+    cattr_reader :carrier_name
+    @@carrier_name = "New Zealand Post"
 
     URL = "http://api.nzpost.co.nz/ratefinder"
 
@@ -106,7 +106,7 @@ module ActiveShipping
 
       def rates
         rates_hash.map do |service, products|
-          RateEstimate.new(@origin, @destination, NewZealandPost.name, service, rate_options(products))
+          RateEstimate.new(@origin, @destination, NewZealandPost.carrier_name, service, rate_options(products))
         end
       end
 

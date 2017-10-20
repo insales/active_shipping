@@ -1,7 +1,7 @@
 module ActiveShipping
   class Cpcr  < Carrier
-    cattr_reader :name
-    @@name = "СПСР Экспресс"
+    cattr_reader :carrier_name
+    @@carrier_name = "СПСР Экспресс"
 
     def api
       @api ||= Api.new(
@@ -33,7 +33,7 @@ module ActiveShipping
 
     def find_rates(origin, destination, packages, options = {})
       package = packages.first
-      rate_estimation = RateEstimate.new(origin, destination, @@name, nil, currency: 'RUB')
+      rate_estimation = RateEstimate.new(origin, destination, @@carrier_name, nil, currency: 'RUB')
       weight = package.kgs
       weight = DEFAULT_WEIGHT if weight < 0.001
       authorize! if @options[:login]

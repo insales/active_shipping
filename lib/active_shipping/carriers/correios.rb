@@ -3,8 +3,8 @@
 module ActiveShipping
   class Correios < Carrier
 
-    cattr_reader :name
-    @@name = "Correios do Brasil"
+    cattr_reader :carrier_name
+    @@carrier_name = "Correios do Brasil"
 
     def find_rates(origin, destination, packages, options = {})
       options = @options.merge(options)

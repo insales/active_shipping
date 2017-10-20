@@ -2,8 +2,8 @@ module ActiveShipping
   class Kunaki < Carrier
     self.retry_safe = true
 
-    cattr_reader :name
-    @@name = "Kunaki"
+    cattr_reader :carrier_name
+    @@carrier_name = "Kunaki"
 
     URL = 'https://Kunaki.com/XMLService.ASP'
 

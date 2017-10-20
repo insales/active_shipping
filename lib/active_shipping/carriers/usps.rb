@@ -17,8 +17,8 @@ module ActiveShipping
     ]
     self.retry_safe = true
 
-    cattr_reader :name
-    @@name = "USPS"
+    cattr_reader :carrier_name
+    @@carrier_name = "USPS"
 
     LIVE_DOMAIN = 'production.shippingapis.com'
     LIVE_RESOURCE = 'ShippingAPI.dll'
@@ -413,7 +413,7 @@ module ActiveShipping
 
       if success
         rate_estimates = rate_hash.keys.map do |service_name|
-          RateEstimate.new(origin, destination, @@name, "USPS #{service_name}",
+          RateEstimate.new(origin, destination, @@carrier_name, "USPS #{service_name}",
                            :package_rates => rate_hash[service_name][:package_rates],
                            :service_code => rate_hash[service_name][:service_code],
                            :currency => 'USD')
@@ -563,7 +563,7 @@ module ActiveShipping
       end
 
       TrackingResponse.new(success, message, Hash.from_xml(response),
-                           :carrier => @@name,
+                           :carrier => @@carrier_name,
                            :xml => response,
                            :request => last_request,
                            :shipment_events => shipment_events,

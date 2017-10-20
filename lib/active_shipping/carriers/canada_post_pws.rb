@@ -1,6 +1,6 @@
 module ActiveShipping
   class CanadaPostPWS < Carrier
-    @@name = "Canada Post PWS"
+    @@carrier_name = "Canada Post PWS"
 
     SHIPPING_SERVICES = {
       "DOM.RP"        => "Regular Parcel",
@@ -78,10 +78,10 @@ module ActiveShipping
       if e.response
         error_response(e.response.body, CPPWSTrackingResponse)
       else
-        CPPWSTrackingResponse.new(false, e.message, {}, :carrier => @@name)
+        CPPWSTrackingResponse.new(false, e.message, {}, :carrier => @@carrier_name)
       end
     rescue InvalidPinFormatError
-      CPPWSTrackingResponse.new(false, "Invalid Pin Format", {}, :carrier => @@name)
+      CPPWSTrackingResponse.new(false, "Invalid Pin Format", {}, :carrier => @@carrier_name)
     end
 
     # line_items should be a list of PackageItem's
@@ -92,7 +92,7 @@ module ActiveShipping
     rescue ActiveUtils::ResponseError, ActiveShipping::ResponseError => e
       error_response(e.response.body, CPPWSShippingResponse)
     rescue MissingCustomerNumberError
-      CPPWSShippingResponse.new(false, "Missing Customer Number", {}, :carrier => @@name)
+      CPPWSShippingResponse.new(false, "Missing Customer Number", {}, :carrier => @@carrier_name)
     end
 
     def retrieve_shipment(shipping_id, options = {})
@@ -272,7 +272,7 @@ module ActiveShipping
           :currency       => 'CAD',
           :delivery_range => [expected_date, expected_date]
         }
-        RateEstimate.new(origin, destination, @@name, service_name, options)
+        RateEstimate.new(origin, destination, @@carrier_name, service_name, options)
       end
       CPPWSRateResponse.new(true, "", {}, :rates => rates)
     end
@@ -293,7 +293,7 @@ module ActiveShipping
       destination      = Location.new(:postal_code => dest_postal_code)
       origin           = Location.new(origin_hash_for(doc.root))
       options = {
-        :carrier                 => @@name,
+        :carrier                 => @@carrier_name,
         :service_name            => doc.root.at('service-name').text,
         :expected_date           => expected_date.blank? ? nil : Date.parse(expected_date),
         :changed_date            => change_date.blank? ? nil : Date.parse(change_date),
@@ -550,7 +550,7 @@ module ActiveShipping
       messages = doc.xpath('messages/message')
       message = messages.map { |m| m.at('description').text }.join(", ")
       code = messages.map { |m| m.at('code').text }.join(", ")
-      response_klass.new(false, message, {}, :carrier => @@name, :code => code)
+      response_klass.new(false, message, {}, :carrier => @@carrier_name, :code => code)
     end
 
     def log(msg)

@@ -2,8 +2,8 @@ module ActiveShipping
   class Shipwire < Carrier
     self.retry_safe = true
 
-    cattr_reader :name
-    @@name = "Shipwire"
+    cattr_reader :carrier_name
+    @@carrier_name = "Shipwire"
 
     URL = 'https://api.shipwire.com/exec/RateServices.php'
     SCHEMA_URL = 'http://www.shipwire.com/exec/download/RateRequest.dtd'

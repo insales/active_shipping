@@ -5,8 +5,8 @@ module ActiveShipping
     self.retry_safe = true
 
     cattr_accessor :default_options
-    cattr_reader :name
-    @@name = "UPS"
+    cattr_reader :carrier_name
+    @@carrier_name = "UPS"
 
     TEST_URL = 'https://wwwcie.ups.com'
     LIVE_URL = 'https://onlinetools.ups.com'
@@ -651,7 +651,7 @@ module ActiveShipping
           service_code = rated_shipment.at('Service/Code').text
           days_to_delivery = rated_shipment.at('GuaranteedDaysToDelivery').text.to_i
           days_to_delivery = nil if days_to_delivery == 0
-          RateEstimate.new(origin, destination, @@name, service_name_for(origin, service_code),
+          RateEstimate.new(origin, destination, @@carrier_name, service_name_for(origin, service_code),
               :total_price => rated_shipment.at('TotalCharges/MonetaryValue').text.to_f,
               :insurance_price => rated_shipment.at('ServiceOptionsCharges/MonetaryValue').text.to_f,
               :currency => rated_shipment.at('TotalCharges/CurrencyCode').text,
@@ -753,7 +753,7 @@ module ActiveShipping
 
       end
       TrackingResponse.new(success, message, Hash.from_xml(response).values.first,
-                           :carrier => @@name,
+                           :carrier => @@carrier_name,
                            :xml => response,
                            :request => last_request,
                            :status => status,
@@ -784,7 +784,7 @@ module ActiveShipping
           service_code = UPS::DEFAULT_SERVICE_NAME_TO_CODE[service_name]
           date = Date.strptime(service_summary.at('EstimatedArrival/Date').text, '%Y-%m-%d')
           business_transit_days = service_summary.at('EstimatedArrival/BusinessTransitDays').text.to_i
-          delivery_estimates << DeliveryDateEstimate.new(origin, destination, self.class.class_variable_get(:@@name),
+          delivery_estimates << DeliveryDateEstimate.new(origin, destination, self.class.class_variable_get(:@@carrier_name),
                                     service_name,
                                     :service_code => service_code,
                                     :guaranteed => service_summary.at('Guaranteed/Code').text == 'Y',

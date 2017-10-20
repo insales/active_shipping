@@ -15,8 +15,8 @@ module ActiveShipping
     INGOSSTRAH_MAX_FOR_CORRESPONDENCE = 20_000
     INGOSSTRAH_MAX_FOR_OTHER          = 600_000
 
-    cattr_reader :name
-    @@name = 'EMS почта россии'
+    cattr_reader :carrier_name
+    @@carrier_name = 'EMS почта россии'
     URL = 'http://emspost.ru/api/rest/?'
     # http://www.emspost.ru/api/rest/?method=ems.get.locations&type=regions
     # http://www.emspost.ru/api/rest/?method=ems.get.locations&type=cities
@@ -311,7 +311,7 @@ module ActiveShipping
       rate_estimation = RateEstimate.new(
         origin,
         destination,
-        @@name,
+        @@carrier_name,
         nil,
         currency:      'RUB',
         delivery_date: delivery_date

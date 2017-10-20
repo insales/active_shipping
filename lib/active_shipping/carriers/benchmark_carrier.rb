@@ -4,8 +4,8 @@
 
 module ActiveShipping
   class BenchmarkCarrier < Carrier
-    cattr_reader :name
-    @@name = "Benchmark Carrier"
+    cattr_reader :carrier_name
+    @@carrier_name = "Benchmark Carrier"
 
     def find_rates(origin, destination, packages, options = {})
       origin = Location.from(origin)
@@ -15,7 +15,7 @@ module ActiveShipping
       delay_time = generate_simulated_lag
 
       bogus_estimate = RateEstimate.new(
-        origin, destination, @@name,
+        origin, destination, @@carrier_name,
         "Free Benchmark Shipping", :total_price => 0, :currency => 'USD',
                                    :packages => packages, :delivery_range => [Time.now.utc.strftime("%Y-%d-%m"), Time.now.utc.strftime("%Y-%d-%m")]
         )

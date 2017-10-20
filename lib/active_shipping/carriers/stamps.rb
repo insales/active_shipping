@@ -3,8 +3,8 @@ module ActiveShipping
   # Integration ID can be requested from Stamps.com
 
   class Stamps < Carrier
-    cattr_reader :name
-    @@name = 'Stamps'
+    cattr_reader :carrier_name
+    @@carrier_name = 'Stamps'
 
     attr_reader :last_swsim_method
 
@@ -655,7 +655,7 @@ module ActiveShipping
         rate_options[:insurance_price] = add_ons['US-A-INS'][:amount]
       end
 
-      StampsRateEstimate.new(origin, destination, @@name, service_name, rate_options)
+      StampsRateEstimate.new(origin, destination, @@carrier_name, service_name, rate_options)
     end
 
     def parse_add_ons(rate)
@@ -712,7 +712,7 @@ module ActiveShipping
     def parse_track_shipment_response(track_shipment, response_options)
       parse_authenticator(track_shipment)
 
-      response_options[:carrier] = @@name
+      response_options[:carrier] = @@carrier_name
 
       shipment_events = track_shipment.xpath('TrackingEvents/TrackingEvent').map do |event|
         unless response_options[:status]

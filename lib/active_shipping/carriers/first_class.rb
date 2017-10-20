@@ -7,8 +7,8 @@ module ActiveShipping
     READ_TIMEOUT  = 3
     TOTAL_TIMEOUT = 3
 
-    cattr_reader :name
-    @@name = "Почта россии, Бандероли 1-го класса"
+    cattr_reader :carrier_name
+    @@carrier_name = "Почта россии, Бандероли 1-го класса"
 
     URL = "http://kladr.insales.ru/first_class/calculator"
 
@@ -63,7 +63,7 @@ module ActiveShipping
 
       price += @options[:packing_price].to_f if @options[:packing_price]
 
-      rate_estimation = RateEstimate.new(origin, destination, @@name, nil, currency: 'RUB')
+      rate_estimation = RateEstimate.new(origin, destination, @@carrier_name, nil, currency: 'RUB')
       rate_estimation.add(packages.first, price)
     end
   end

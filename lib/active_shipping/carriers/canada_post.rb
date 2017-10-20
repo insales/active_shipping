@@ -14,9 +14,9 @@ module ActiveShipping
       end
     end
 
-    cattr_reader :name, :name_french
-    @@name = "Canada Post"
-    @@name_french = "Postes Canada"
+    cattr_reader :carrier_name, :carrier_name_french
+    @@carrier_name = "Canada Post"
+    @@carrier_name_french = "Postes Canada"
 
     Box = Struct.new(:name, :weight, :expediter_weight, :length, :width, :height, :packedItems)
     PackedItem = Struct.new(:quantity, :description)
@@ -149,10 +149,10 @@ module ActiveShipping
       boxes = []
       if success
         xml.xpath('eparcel/ratesAndServicesResponse/product').each do |product|
-          service_name = (@options[:french] ? @@name_french : @@name) + " " + product.at('name').text
+          service_name = (@options[:french] ? @@carrier_name_french : @@carrier_name) + " " + product.at('name').text
           service_code = product['id']
 
-          rate_estimates << RateEstimate.new(origin, destination, @@name, service_name,
+          rate_estimates << RateEstimate.new(origin, destination, @@carrier_name, service_name,
                                              :service_code => service_code,
                                              :total_price => product.at('rate').text,
                                              :currency => 'CAD',
