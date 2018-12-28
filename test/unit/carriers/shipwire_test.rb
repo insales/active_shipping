@@ -44,8 +44,8 @@ class ShipwireTest < Minitest::Test
     assert_equal "UPS", international.carrier
     assert_equal "UPS Standard", international.service_name
     assert_equal 2806, international.total_price
-    assert_equal date + 7, international.delivery_date
-    assert_equal [date + 1, date + 7], international.delivery_range
+    assert_equal date + 7.days, international.delivery_date
+    assert_equal [date + 1.day, date + 7.days], international.delivery_range
   end
 
   def test_successfully_get_domestic_rates
@@ -69,22 +69,22 @@ class ShipwireTest < Minitest::Test
     assert_equal "UPS", ground.carrier
     assert_equal "UPS Ground", ground.service_name
     assert_equal 773, ground.total_price
-    assert_equal date + 7, ground.delivery_date
-    assert_equal [date + 1, date + 7], ground.delivery_range
+    assert_equal date + 7.days, ground.delivery_date
+    assert_equal [date + 1.day, date + 7.days], ground.delivery_range
 
     assert two_day = response.rates.find { |r| r.service_code == "2D" }
     assert_equal "UPS", two_day.carrier
     assert_equal "UPS Second Day Air", two_day.service_name
     assert_equal 1364, two_day.total_price
-    assert_equal date + 2, two_day.delivery_date
-    assert_equal [date + 2, date + 2], two_day.delivery_range
+    assert_equal date + 2.days, two_day.delivery_date
+    assert_equal [date + 2.days, date + 2.days], two_day.delivery_range
 
     assert one_day = response.rates.find { |r| r.service_code == "1D" }
     assert_equal "USPS", one_day.carrier
     assert_equal "USPS Express Mail", one_day.service_name
     assert_equal 2525, one_day.total_price
-    assert_equal date + 1, one_day.delivery_date
-    assert_equal [date + 1, date + 1], one_day.delivery_range
+    assert_equal date + 1.day, one_day.delivery_date
+    assert_equal [date + 1.day, date + 1.day], one_day.delivery_range
   end
 
   def test_gracefully_handle_new_carrier
