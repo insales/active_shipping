@@ -226,10 +226,10 @@ class RemoteFedExTest < Minitest::Test
     assert_equal "Delivered", response.status_description
 
     assert_equal Time.parse('2014-11-14T03:49:00Z'), response.ship_time
-    assert_equal nil, response.scheduled_delivery_date
+    assert_nil response.scheduled_delivery_date
     assert_equal Time.parse('2014-12-05T00:28:00Z'), response.actual_delivery_date
 
-    assert_equal nil, response.origin
+    assert_nil response.origin
 
     destination_address = ActiveShipping::Location.new(
       city: 'COLLIERVILLE',
@@ -251,7 +251,7 @@ class RemoteFedExTest < Minitest::Test
     assert_equal "Package available for clearance", response.status_description
     assert_equal 1, response.shipment_events.length
     assert_nil response.actual_delivery_date
-    assert_equal nil, response.scheduled_delivery_date
+    assert_nil response.scheduled_delivery_date
   end
 
   def test_find_tracking_info_for_in_transit_shipment_2
@@ -265,10 +265,10 @@ class RemoteFedExTest < Minitest::Test
     assert_equal "In transit", response.status_description
 
     assert_equal Time.parse('2014-11-25T20:04:00Z'), response.ship_time
-    assert_equal nil, response.scheduled_delivery_date
-    assert_equal nil, response.actual_delivery_date
+    assert_nil response.scheduled_delivery_date
+    assert_nil response.actual_delivery_date
 
-    assert_equal nil, response.origin
+    assert_nil response.origin
 
     destination_address = ActiveShipping::Location.new(
       city: 'TONNESSEE',

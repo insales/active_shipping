@@ -153,7 +153,7 @@ class RemoteCanadaPostPWSPlatformTest < Minitest::Test
   def test_register_merchant
     response = @cp.register_merchant
     assert response.is_a?(CPPWSRegisterResponse)
-    assert_match /^(\d|[a-f]){22}$/, response.token_id
+    assert_match(/^(\d|[a-f]){22}$/, response.token_id)
   end
 
   def test_merchant_details_empty_details
