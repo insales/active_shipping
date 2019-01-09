@@ -5,7 +5,7 @@ desc "Run the unit and functional remote tests"
 Rake::TestTask.new(:test) do |t|
   t.libs << "test"
   t.pattern = 'test/**/*_test.rb'
-  t.verbose = true
+  t.warning = false
 end
 
 namespace :test do

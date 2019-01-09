@@ -277,7 +277,7 @@ class FedExTest < Minitest::Test
     refute response.exception?
 
     assert_equal Date.parse('2013-12-30'), response.ship_time
-    assert_equal nil, response.scheduled_delivery_date
+    assert_nil response.scheduled_delivery_date
     assert_equal Time.parse('2014-01-02T18:23:29Z'), response.actual_delivery_date
 
     origin_address = ActiveShipping::Location.new(
@@ -308,7 +308,7 @@ class FedExTest < Minitest::Test
     refute response.exception?
     assert_equal 10, response.shipment_events.length
     assert_equal 'Delivered', response.latest_event.name
-    assert_equal nil, response.delivery_signature
+    assert_nil response.delivery_signature
   end
 
   def test_tracking_info_for_in_transit
@@ -325,13 +325,13 @@ class FedExTest < Minitest::Test
     assert_equal :in_transit, response.status
     assert_equal 'IT', response.status_code
     assert_equal "Package available for clearance", response.status_description
-    assert_equal nil, response.delivery_signature
+    assert_nil response.delivery_signature
 
     assert_equal Time.parse('2014-11-17T22:39:00+11:00'), response.ship_time
-    assert_equal nil, response.scheduled_delivery_date
-    assert_equal nil, response.actual_delivery_date
+    assert_nil response.scheduled_delivery_date
+    assert_nil response.actual_delivery_date
 
-    assert_equal nil, response.origin
+    assert_nil response.origin
 
     destination_address = ActiveShipping::Location.new(
       city: 'GRAFTON',
@@ -356,8 +356,8 @@ class FedExTest < Minitest::Test
     assert_equal "Unable to deliver", response.status_description
 
     assert_equal Date.parse('2014-01-27'), response.ship_time
-    assert_equal nil, response.scheduled_delivery_date
-    assert_equal nil, response.actual_delivery_date
+    assert_nil response.scheduled_delivery_date
+    assert_nil response.actual_delivery_date
 
     origin_address = ActiveShipping::Location.new(
       city: 'AUSTIN',

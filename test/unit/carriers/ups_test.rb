@@ -223,7 +223,7 @@ class UPSTest < Minitest::Test
                                     package_fixtures.values_at(:chocolate_stuff))
 
     date_test = [nil, 3, 2, 1, 1, 1].map do |days|
-      DateTime.now.utc + days + 2 if days
+      DateTime.now.utc + (days + 2).days if days
     end
     Timecop.return
 

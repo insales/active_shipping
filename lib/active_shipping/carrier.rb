@@ -143,7 +143,7 @@ module ActiveShipping
       date = DateTime.now.utc
       days.times do
         begin
-          date = date + 1
+          date = date + 1.day
         end while [0, 6].include?(date.wday)
       end
       date
